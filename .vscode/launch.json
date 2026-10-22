@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Flutter Ads (quick test)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=SKIP_ONBOARDING=true",
+        "--dart-define=DEBUG_INTERSTITIAL_SECONDS=10"
+      ]
+    },
+    {
+      "name": "Flutter Pro (test)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DEBUG_PRO=true",
+        "--dart-define=SKIP_ONBOARDING=true"
+      ]
+    }
+  ]
+}

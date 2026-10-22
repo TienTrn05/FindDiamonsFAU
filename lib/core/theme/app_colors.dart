@@ -1,0 +1,56 @@
+import 'package:flutter/material.dart';
+
+/// Shared UI palette. Keep raw UI color values here so every feature stays in sync.
+abstract final class AppColors {
+  static const primary = Color(0xFF69AEC5);
+  static const accent = Color(0xFFC44551);
+  static const permissionAction = Color(0xFF1766D2);
+  static const surface = Colors.white;
+  static const text = Colors.black;
+  static const textSecondary = Color(0xFF555555);
+  static const textMuted = Color(0xFF777777);
+  static const onPrimary = Colors.white;
+  static const transparent = Colors.transparent;
+  static const border = Colors.grey;
+  static const card = Color(0xFFE8E6F2);
+  static const cardBorder = Color(0xFF92938F);
+  static const indicatorActive = Color(0xFF58C4EA);
+  static const indicatorInactive = Color(0xFF505351);
+  static const oreRow = Color(0xFFF6FBEF);
+  static const oreRowBorder = Color(0xFF50AEC8);
+  static const heroBackground = Color(0xFF82BBD0);
+  static const scrim = Color(0x99000000);
+  static const loadingOverlay = Color(0x99FFFFFF);
+  static const buttonShadow = Color(0x14000000);
+  static const heroScrim = Color(0x38000000);
+  static const action = Color(0xFF50AFC8);
+  static const danger = Color(0xFFD9364C);
+  static const navigationSelected = Color(0xFFC9E4EC);
+  static const fieldBorder = Color(0xFF50AFC8);
+  static const rank = Color(0xFF393D48);
+  static const serverSurface = Color(0xFFF5FBEE);
+  static const chipSurface = Color(0xFFEAECE6);
+  static const online = Color(0xFFAFD28E);
+  static const offline = Color(0xFF9A9D99);
+  static const banner = Color(0xFF747E88);
+  static const serverHero = Color(0xFF111111);
+  static const serverAction = Color(0xFF00BE00);
+  static const serverActionBorder = Color(0xFF579E32);
+  static const serverNavigation = Color(0xFF079CF3);
+  static const adSurface = Color(0xFFF2F2F2);
+  static const helpPanel = Color(0xFFCDE6EF);
+  static const helpFooter = Color(0xFFD4D4D4);
+  static const adAction = Color(0xFF13A5E8);
+  static const landscapeWash = Color(0xA6FFFFFF);
+  static const lock = Color(0xFFFFCA28);
+  static const worldSky = Color(0xFFB9D4FB);
+  static const worldGrass = Color(0xFF6A9F31);
+  static const worldGrassLight = Color(0xFF87B84B);
+  static const worldEarth = Color(0xFF896142);
+  static const worldEarthShade = Color(0xFF654B37);
+  static const pickaxeOutline = Color(0xFF181626);
+  static const pickaxeSteel = Color(0xFF91A4B7);
+  static const pickaxeHighlight = Color(0xFFD0DEE6);
+  static const pickaxeHandle = Color(0xFF71463E);
+  static const pickaxeHandleDark = Color(0xFF563534);
+}

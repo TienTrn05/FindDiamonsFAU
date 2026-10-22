@@ -1,0 +1,76 @@
+{
+  "banner": "Tap here...",
+  "servers": [
+    {
+      "id": "complex",
+      "rank": 1,
+      "name": "Complex Gaming",
+      "tags": [
+        "SMP",
+        "Skyblock",
+        "Survival"
+      ],
+      "online": 8777,
+      "capacity": 10000,
+      "address": "demo-complex.example",
+      "website": "https://example.com/servers/complex",
+      "port": 19132,
+      "bannerLabel": "SKYBLOCK",
+      "bannerImage": "assets/images/block_landscape.png",
+      "description": "Welcome to Complex Gaming! Discover new worlds and enjoy SMP, Skyblock and Survival with a friendly community. Build with friends, join community events and start your next adventure. More game modes, server news and community information will be available here soon.",
+      "status": "online"
+    },
+    {
+      "id": "mystic",
+      "rank": 2,
+      "name": "MysticMC [1.21]",
+      "tags": [
+        "SMP",
+        "Survival"
+      ],
+      "online": 110,
+      "capacity": 500,
+      "address": "demo-mystic.example",
+      "status": "online"
+    },
+    {
+      "id": "sun",
+      "rank": 3,
+      "name": "SunRealms",
+      "tags": [
+        "Skyblock",
+        "Java"
+      ],
+      "online": 18611,
+      "capacity": 30000,
+      "address": "demo-sun.example",
+      "status": "online"
+    },
+    {
+      "id": "mchub",
+      "rank": 4,
+      "name": "McHub [1.21]",
+      "tags": [
+        "Skyblock",
+        "Java"
+      ],
+      "online": 28348,
+      "capacity": 28349,
+      "address": "demo-mchub.example",
+      "status": "online"
+    },
+    {
+      "id": "valley",
+      "rank": 5,
+      "name": "Emerald Valley",
+      "tags": [
+        "Creative",
+        "Bedrock"
+      ],
+      "online": 0,
+      "capacity": 800,
+      "address": "demo-valley.example",
+      "status": "offline"
+    }
+  ]
+}

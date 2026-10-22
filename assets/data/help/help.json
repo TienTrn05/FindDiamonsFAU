@@ -1,0 +1,50 @@
+{
+  "restoreHint": "Click the button to restore your in-app purchases.",
+  "languages": [
+    {"code": "en", "label": "English", "flag": "us"},
+    {"code": "es", "label": "Español", "flag": "es"},
+    {"code": "pt", "label": "Português", "flag": "pt"},
+    {"code": "tr", "label": "Türkçe", "flag": "tr"},
+    {"code": "fr", "label": "Français", "flag": "fr"},
+    {"code": "de", "label": "Deutsch", "flag": "de"},
+    {"code": "id", "label": "Bahasa Indonesia", "flag": "id"},
+    {"code": "vi", "label": "Tiếng Việt", "flag": "vn"}
+  ],
+  "faqs": [
+    {
+      "id": "position",
+      "question": "How do I find my position?",
+      "before": "Bedrock: Turn on the \"Show Coordinates\" option in the game settings screen.\nJava: Press F3 in-game and note the X and Z coordinates (the first and last numbers).",
+      "illustration": "coordinates",
+      "after": "Use the X and Z values for Player X and Player Z in the app. Your height (Y) is not needed for the search."
+    },
+    {
+      "id": "seed",
+      "question": "How do I find my world seed?",
+      "before": "In Bedrock/PE: Press Pause > Settings > Game, then scroll down until you see \"Seed\".\nIn Java: Type /seed in chat with the required permissions to display your world seed.",
+      "illustration": "seed",
+      "after": "Copy the complete seed into the World seed field. Keep a note of it so you can use the same world again."
+    }
+  ],
+  "policySections": [
+    {
+      "title": "Terms of Use",
+      "body": "Terms of use will be provided here. This section will explain access to the app, subscriptions, purchases and use of its features.\n\nPlease refer to the published terms when they become available. This preview text will be replaced before release.",
+      "linkLabel": "View terms of use on our website >",
+      "url": "https://example.com/terms"
+    },
+    {
+      "title": "Copyright Disclaimer",
+      "body": "Information about brands, illustrations and other assets will be provided here.\n\nThe final notice will identify the relevant owners and any applicable permissions. This preview does not imply endorsement or association with a game publisher.",
+      "linkLabel": "View asset and brand information >",
+      "url": "https://example.com/copyright"
+    },
+    {
+      "title": "Privacy Policy",
+      "body": "The privacy policy will describe what information the app uses, how it is stored, and the choices available to you.\n\nDetails about support, retention and privacy requests will be provided with the final policy.",
+      "linkLabel": "View privacy policy on our website >",
+      "url": "https://example.com/privacy"
+    }
+  ],
+  "footer": "finddiamonds-demo\nApp information"
+}

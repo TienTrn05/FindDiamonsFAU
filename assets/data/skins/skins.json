@@ -1,0 +1,40 @@
+{
+  "skins": [
+    {
+      "id": "steve",
+      "name": "Steve",
+      "palette": "steve",
+      "locked": false
+    },
+    {
+      "id": "batman",
+      "name": "Batman",
+      "palette": "knight",
+      "locked": true
+    },
+    {
+      "id": "superpanda",
+      "name": "Super Panda",
+      "palette": "panda",
+      "locked": true
+    },
+    {
+      "id": "neon",
+      "name": "Neon",
+      "palette": "neon",
+      "locked": false
+    },
+    {
+      "id": "explorer",
+      "name": "Explorer",
+      "palette": "explorer",
+      "locked": false
+    },
+    {
+      "id": "robot",
+      "name": "Robot",
+      "palette": "robot",
+      "locked": true
+    }
+  ]
+}

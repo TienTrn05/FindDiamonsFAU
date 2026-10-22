@@ -1,0 +1,99 @@
+{
+  "title": "Maps Mods & Seeds",
+  "categories": [
+    "Seeds",
+    "Favourite",
+    "SkyBlock",
+    "Horror",
+    "Maze",
+    "Parkour",
+    "Mini game",
+    "Challenges"
+  ],
+  "initialCategory": "Seeds",
+  "items": [
+    {
+      "id": "wings",
+      "name": "The Wings",
+      "subtitle": "",
+      "description": "Fly with Elytra in a fast aerial challenge.",
+      "category": "Challenges",
+      "cover": "assets/images/adventurer.png",
+      "locked": true,
+      "seed": null
+    },
+    {
+      "id": "warehouse1",
+      "name": "Warehouse I",
+      "subtitle": "Chapter 1",
+      "description": "Mystery adventure inside a dark warehouse.",
+      "category": "Horror",
+      "cover": "assets/images/warehouse.png",
+      "locked": true,
+      "features": [
+        "Story-driven map set in an abandoned warehouse.",
+        "Explore eerie rooms and hidden areas while uncovering clues.",
+        "Puzzle and adventure focused — requires careful observation.",
+        "Immersive environment with a creepy, suspenseful vibe.",
+        "Designed as the first chapter of a larger series."
+      ],
+      "seed": null
+    },
+    {
+      "id": "warehouse2",
+      "name": "Warehouse II",
+      "subtitle": "Chapter 2",
+      "description": "Continue the warehouse mystery with deeper challenges.",
+      "category": "Horror",
+      "cover": "assets/images/warehouse.png",
+      "locked": true,
+      "features": [
+        "Continue the warehouse mystery with deeper challenges.",
+        "Explore eerie rooms and hidden areas while uncovering clues.",
+        "Puzzle and adventure focused — requires careful observation.",
+        "Immersive environment with a creepy, suspenseful vibe."
+      ],
+      "seed": null
+    },
+    {
+      "id": "skyisland",
+      "name": "SkyBlock Islands",
+      "subtitle": "Survival challenge",
+      "description": "Start small and build your own world above the clouds.",
+      "category": "SkyBlock",
+      "cover": "assets/images/block_landscape.png",
+      "locked": false,
+      "seed": "82470031"
+    },
+    {
+      "id": "valley",
+      "name": "Emerald Valley",
+      "subtitle": "1.21 Bedrock · 1.21 Java",
+      "description": "Explore a peaceful valley surrounded by tall stone cliffs, with two villages near spawn and a third settlement just beyond the river. Follow the mountain trails to find hidden waterfalls, deep cave entrances and a sheltered lake for your first base. A pillager outpost stands on the ridge above the villages, creating an early challenge for adventurous players. Gather food and wood before heading underground, bring plenty of torches, and watch your step around the ravines while exploring this world with friends.",
+      "category": "Seeds",
+      "versions": ["1.21 Bedrock", "1.21 Java", "1.20 Bedrock", "1.20 Java"],
+      "cover": "assets/images/block_landscape.png",
+      "locked": false,
+      "seed": "36643745"
+    },
+    {
+      "id": "cliffs",
+      "name": "Cliffside Village",
+      "subtitle": "1.19 Bedrock · 1.19 Java",
+      "description": "Discover a village hidden between towering stone cliffs.",
+      "category": "Seeds",
+      "versions": [
+        "1.19 Bedrock",
+        "1.19 Java",
+        "1.18 Bedrock",
+        "1.17 Bedrock",
+        "1.17 Java",
+        "1.16 Bedrock",
+        "1.16 Java"
+      ],
+      "cover": "assets/images/block_landscape.png",
+      "locked": false,
+      "seed": "92063247"
+    }
+  ]
+}

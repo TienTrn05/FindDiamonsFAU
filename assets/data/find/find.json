@@ -1,0 +1,84 @@
+{
+  "title": "Find Diamonds!",
+  "help": "Enter your player X and Z coordinates, your world seed, and your game version. Choose an ore, then tap Start digging to see matching coordinates.",
+  "versions": [
+    {
+      "id": "bedrock_26",
+      "label": "1.21/1.20 Bedrock (v26)"
+    },
+    {
+      "id": "java_21",
+      "label": "1.21 Java Edition"
+    },
+    {
+      "id": "bedrock_19",
+      "label": "1.19 Bedrock"
+    },
+    {
+      "id": "java_18",
+      "label": "1.18 Java Edition"
+    }
+  ],
+  "ores": [
+    {
+      "id": "diamond",
+      "name": "Diamond"
+    },
+    {
+      "id": "copper",
+      "name": "Copper"
+    },
+    {
+      "id": "coal",
+      "name": "Coal"
+    },
+    {
+      "id": "lapis",
+      "name": "Lapis"
+    },
+    {
+      "id": "redstone",
+      "name": "Redstone"
+    },
+    {
+      "id": "gold",
+      "name": "Gold"
+    },
+    {
+      "id": "emerald",
+      "name": "Emerald"
+    }
+  ],
+  "positions": [
+    {
+      "x": 62,
+      "y": -54,
+      "z": 32,
+      "count": 3
+    },
+    {
+      "x": 39,
+      "y": -41,
+      "z": 28,
+      "count": 9
+    },
+    {
+      "x": 70,
+      "y": -58,
+      "z": 41,
+      "count": 1
+    },
+    {
+      "x": 10,
+      "y": -24,
+      "z": 79,
+      "count": 6
+    },
+    {
+      "x": 6,
+      "y": -48,
+      "z": 40,
+      "count": 4
+    }
+  ]
+}
