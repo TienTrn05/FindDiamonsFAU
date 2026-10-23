@@ -73,14 +73,18 @@ class _SdkAdView extends StatefulWidget {
   State<_SdkAdView> createState() => _SdkAdViewState();
 }
 
-class _SdkAdViewState extends State<_SdkAdView> {
+class _SdkAdViewState extends State<_SdkAdView> with WidgetsBindingObserver {
   AdWithView? _ad;
+  Timer? _retryTimer;
+  int _retryCount = 0;
+  bool _loading = false;
   bool _ready = false;
   double _height = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_load());
     });
@@ -88,7 +92,33 @@ class _SdkAdViewState extends State<_SdkAdView> {
 
   void _loaded(Ad ad) {
     if (!mounted || !identical(ad, _ad)) return;
+    _retryTimer?.cancel();
+    _retryCount = 0;
     setState(() => _ready = true);
+  }
+
+  bool get _canLoad =>
+      mounted &&
+      widget.runtime.available &&
+      TickerMode.of(context) &&
+      ModalRoute.of(context)?.isCurrent == true &&
+      (WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed);
+
+  void _scheduleRetry() {
+    if (!mounted || !widget.runtime.available) return;
+    _retryTimer?.cancel();
+    // A temporary network failure must not hide the placement for the session.
+    final seconds = 30 * (1 << math.min(_retryCount, 2));
+    _retryCount++;
+    _retryTimer = Timer(Duration(seconds: seconds), () => unawaited(_load()));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_ready && _ad == null) {
+      unawaited(_load());
+    }
   }
 
   void _failed(Ad ad, LoadAdError error) {
@@ -99,23 +129,36 @@ class _SdkAdViewState extends State<_SdkAdView> {
         _ad = null;
         _ready = false;
       });
+      _scheduleRetry();
     }
   }
 
   Future<void> _load() async {
+    if (!mounted || _loading || _ad != null) return;
+    if (!_canLoad) {
+      _scheduleRetry();
+      return;
+    }
+    _retryTimer?.cancel();
+    _loading = true;
     try {
       if (!await widget.runtime.prepare(
             canShowConsent: () =>
                 mounted && ModalRoute.of(context)?.isCurrent == true,
           ) ||
           !mounted) {
+        _scheduleRetry();
         return;
       }
       if (widget.placement == AdPlacement.banner) {
         final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(
           widget.width,
         );
-        if (!mounted || size == null) return;
+        if (!mounted) return;
+        if (size == null) {
+          _scheduleRetry();
+          return;
+        }
         _height = size.height.toDouble();
         _ad = BannerAd(
           adUnitId: AdUnits.id(AdPlacement.banner),
@@ -168,11 +211,16 @@ class _SdkAdViewState extends State<_SdkAdView> {
       _ad?.dispose();
       _ad = null;
       if (mounted) setState(() => _ready = false);
+      _scheduleRetry();
+    } finally {
+      _loading = false;
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _retryTimer?.cancel();
     _ad?.dispose();
     widget.runtime.endFullscreen(this, wasShown: false);
     super.dispose();

@@ -77,12 +77,15 @@ flutter:
     - assets/l10n/
     - assets/images/flags/
   fonts:
+    - family: Monocraft
+      fonts:
+        - asset: assets/fonts/Monocraft-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Monocraft-Bold.ttf
+          weight: 700
     - family: Roboto
       fonts:
         - asset: assets/fonts/Roboto-Regular.ttf
-    - family: PixelifySans
-      fonts:
-        - asset: assets/fonts/PixelifySans.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

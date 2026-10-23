@@ -24,11 +24,15 @@ class FindPage extends StatefulWidget {
     required this.onGoPro,
     required this.onHelp,
     this.onFound,
+    this.onReveal,
+    this.onFoundChanged,
     this.repository,
   });
   final VoidCallback onGoPro;
   final VoidCallback onHelp;
   final Future<void> Function(SearchRecord)? onFound;
+  final Future<void> Function(String id, int count)? onReveal;
+  final Future<void> Function(String id, int index, bool found)? onFoundChanged;
   final FindRepository? repository;
   @override
   State<FindPage> createState() => _FindPageState();
@@ -107,6 +111,13 @@ class _FindPageState extends State<FindPage> {
               record: record,
               onGoPro: widget.onGoPro,
               onHelp: widget.onHelp,
+              onReveal: widget.onReveal == null
+                  ? null
+                  : (count) => widget.onReveal!(record.id, count),
+              onFoundChanged: widget.onFoundChanged == null
+                  ? null
+                  : (index, found) =>
+                        widget.onFoundChanged!(record.id, index, found),
             ),
           ),
         );

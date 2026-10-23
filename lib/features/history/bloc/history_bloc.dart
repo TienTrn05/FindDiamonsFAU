@@ -25,4 +25,20 @@ class HistoryBloc extends ResourceController<HistoryData> {
       await load();
     }
   }
+
+  Future<void> reveal(String id, int count) async {
+    try {
+      await repository.reveal(id, count);
+    } finally {
+      await load();
+    }
+  }
+
+  Future<void> setFound(String id, int index, bool found) async {
+    try {
+      await repository.setFound(id, index, found);
+    } finally {
+      await load();
+    }
+  }
 }

@@ -44,7 +44,9 @@ class HistoryPage extends StatelessWidget {
           onGoPro: onGoPro,
           onHelp: onHelp,
           showLoading: false,
-          showAllInitially: true,
+          onReveal: (count) => controller.reveal(record.id, count),
+          onFoundChanged: (index, found) =>
+              controller.setFound(record.id, index, found),
         ),
       ),
     );
@@ -107,107 +109,97 @@ class _HistoryCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
+  Widget _coordinate(String axis, int value, double maxWidth) => ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: maxWidth),
+    child: Text(
+      '$axis: $value',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyles.historyCard,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Material(
     color: AppColors.oreRow,
-    borderRadius: AppRadii.card,
-    child: InkWell(
-      key: ValueKey('history-${record.id}'),
+    shape: RoundedRectangleBorder(
       borderRadius: AppRadii.card,
+      side: const BorderSide(color: AppColors.oreRowBorder, width: 3),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: ListTile(
+      key: ValueKey('history-${record.id}'),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.oreRowBorder, width: 3),
-          borderRadius: AppRadii.card,
+      isThreeLine: true,
+      titleAlignment: ListTileTitleAlignment.center,
+      contentPadding: const EdgeInsets.all(AppSpacing.md),
+
+      leading: Semantics(
+        label: context.tr(record.oreName),
+        image: true,
+        child: OreIcon(
+          ore: Ore.values.firstWhere(
+            (ore) => ore.name == record.oreId,
+            orElse: () => Ore.diamond,
+          ),
+          size: 44,
         ),
-        child: Row(
+      ),
+
+      title: LayoutBuilder(
+        builder: (context, constraints) => Table(
+          columnWidths: const {0: FlexColumnWidth(), 1: IntrinsicColumnWidth()},
+          defaultVerticalAlignment: TableCellVerticalAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
-            Semantics(
-              label: context.tr(record.oreName),
-              image: true,
-              child: OreIcon(
-                ore: Ore.values.firstWhere(
-                  (ore) => ore.name == record.oreId,
-                  orElse: () => Ore.diamond,
-                ),
-                size: 44,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const AppText(
-                              'Seed:',
-                              style: AppTextStyles.itemTitle,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              record.seed,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.itemTitle.copyWith(
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Flexible(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'X: ${record.playerX}',
-                              style: AppTextStyles.pixelBodyLarge,
-                            ),
-                            Text(
-                              'Z: ${record.playerZ}',
-                              style: AppTextStyles.pixelBodyLarge,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppText(
-                    'Version: ${record.version}',
-                    style: AppTextStyles.pixelBodyLarge,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Column(
+            TableRow(
               children: [
-                const Icon(Icons.chevron_right, size: 26),
-                IconButton(
-                  tooltip: context.tr('Delete search'),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: onDelete,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 18,
-                    color: AppColors.textMuted,
+                const AppText('Seed:', style: AppTextStyles.historyCard),
+                _coordinate('X', record.playerX, constraints.maxWidth * .45),
+              ],
+            ),
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.xs,
+                    right: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    record.seed,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.fieldValue,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: _coordinate(
+                    'Z',
+                    record.playerZ,
+                    constraints.maxWidth * .45,
                   ),
                 ),
               ],
             ),
           ],
         ),
+      ),
+
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.sm),
+        child: AppText(
+          'Version: ${record.version}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.historyCard,
+        ),
+      ),
+
+      trailing: const Icon(
+        Icons.chevron_right,
+        size: 26,
+        color: AppColors.text,
       ),
     ),
   );

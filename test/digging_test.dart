@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -43,6 +44,33 @@ class _PendingRepository implements FindRepository {
 }
 
 void main() {
+  test(
+    'a new search randomly unlocks one or two items and records that count',
+    () async {
+      final repository = JsonFindRepository(random: math.Random(42));
+      final catalog = await repository.load();
+      final counts = <int>{};
+      for (var index = 0; index < 30; index++) {
+        final record = await repository.search(
+          FindQuery(
+            x: 0,
+            z: 0,
+            seed: '$index',
+            version: catalog.versions.first,
+            ore: catalog.ores.first,
+          ),
+        );
+        expect(record.revealedCount, inInclusiveRange(1, 2));
+        expect(
+          SearchRecord.fromJson(record.toJson()).revealedCount,
+          record.revealedCount,
+        );
+        counts.add(record.revealedCount);
+      }
+      expect(counts, {1, 2});
+    },
+  );
+
   testWidgets(
     'digging stays visible for 1.1 seconds with an immediate result',
     (tester) async {

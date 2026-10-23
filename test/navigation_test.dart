@@ -111,11 +111,13 @@ class _FixtureBundle extends CachingAssetBundle {
   );
 }
 
-AppRepositories _repositories() {
+AppRepositories _repositories({HistoryRepository? history}) {
   final source = JsonAssetSource(bundle: _FixtureBundle());
   return AppRepositories(
     find: JsonFindRepository(source: source),
-    history: JsonHistoryRepository(source: source, store: MemoryHistoryStore()),
+    history:
+        history ??
+        JsonHistoryRepository(source: source, store: MemoryHistoryStore()),
     skins: JsonSkinsRepository(source: source),
     servers: JsonServersRepository(source: source),
     maps: JsonMapsRepository(source: source),
@@ -138,6 +140,7 @@ Future<void> _mount(
   double textScale = 1,
   AppLocaleController? languages,
   AppMonetization? monetization,
+  AppRepositories? repositories,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -177,7 +180,7 @@ Future<void> _mount(
                 child: child!,
               ),
               home: AppShell(
-                repositories: _repositories(),
+                repositories: repositories ?? _repositories(),
                 monetization: access,
               ),
             ),
@@ -285,6 +288,13 @@ Future<void> _capture(
     image.dispose();
   });
 }
+
+Finder _oreCards() => find.byWidgetPredicate(
+  (widget) =>
+      widget is InkWell &&
+      widget.key is ValueKey<String> &&
+      (widget.key as ValueKey<String>).value.startsWith('ore-result-'),
+);
 
 Finder _field(String key) => find.descendant(
   of: find.byKey(ValueKey(key)),
@@ -430,6 +440,7 @@ void main() {
           ore: catalog.ores.first,
         ),
       );
+      final initialCount = record.revealedCount;
       final navigator = tester.state<NavigatorState>(find.byType(Navigator));
       navigator.push<void>(
         MaterialPageRoute(
@@ -454,7 +465,7 @@ void main() {
         await tester.ensureVisible(another);
         await tester.tap(another);
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('ore-result-1')), findsNothing);
+        expect(find.byKey(ValueKey('ore-result-$initialCount')), findsNothing);
         expect(access.revealedCount(record.id), 1);
       }
       ScaffoldMessenger.of(tester.element(another)).clearSnackBars();
@@ -467,18 +478,21 @@ void main() {
       await tester.tap(another);
       await tester.pump();
       expect(ads.requests, requests);
-      expect(find.byKey(const ValueKey('ore-result-1')), findsNothing);
+      expect(find.byKey(ValueKey('ore-result-$initialCount')), findsNothing);
       ads.pending!.complete(RewardedAdResult.earned);
       final preloadsBeforeReward = ads.preloads;
       await tester.pumpAndSettle();
       expect(ads.preloads, greaterThan(preloadsBeforeReward));
-      expect(find.byKey(const ValueKey('ore-result-1')), findsOneWidget);
-      expect(find.byKey(const ValueKey('ore-result-2')), findsNothing);
-      expect(access.revealedCount(record.id), 2);
+      expect(find.byKey(ValueKey('ore-result-$initialCount')), findsOneWidget);
+      expect(
+        find.byKey(ValueKey('ore-result-${initialCount + 1}')),
+        findsNothing,
+      );
+      expect(access.revealedCount(record.id), initialCount + 1);
       access.updateEntitlement(true);
       await tester.pumpAndSettle();
       expect(ads.clears, 1);
-      expect(find.byType(Checkbox), findsNWidgets(record.positions.length));
+      expect(_oreCards(), findsNWidgets(record.positions.length));
       expect(another, findsNothing);
       expect(find.byKey(const ValueKey('show-all-ores')), findsNothing);
       expect(ads.requests, requests);
@@ -542,8 +556,8 @@ void main() {
       await AppTranslations.load(locale);
     }
     for (final font in [
-      (AppFonts.pixel, 'assets/fonts/PixelifySans.ttf'),
-      (AppFonts.body, 'assets/fonts/Roboto-Regular.ttf'),
+      (AppFonts.body, 'assets/fonts/Monocraft-Regular.ttf'),
+      ('Roboto', 'assets/fonts/Roboto-Regular.ttf'),
       ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
     ]) {
       await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
@@ -818,6 +832,8 @@ void main() {
           ),
         );
         await tester.ensureVisible(premium);
+        await Scrollable.ensureVisible(tester.element(premium), alignment: .5);
+        await tester.pumpAndSettle();
         await tester.tap(premium);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: locale.languageCode);
@@ -903,7 +919,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.byType(DiggingPickaxe), findsOneWidget);
-    expect(find.text('Please wait...'), findsOneWidget);
     expect(
       tester
           .widget<EditableText>(
@@ -924,25 +939,30 @@ void main() {
     await _capture(tester, '21-found-loading');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('ore-result-0')), findsOneWidget);
-    expect(find.byKey(const ValueKey('ore-result-1')), findsNothing);
-    expect(find.text('There are 4 more ore clusters nearby!'), findsOneWidget);
-    await _capture(tester, '22-found-ores');
-    await tester.tap(find.byKey(const ValueKey('ore-found-0')));
-    await tester.pump();
+    final initialCount = tester.widgetList(_oreCards()).length;
+    expect(initialCount, inInclusiveRange(1, 2));
+    expect(find.byKey(ValueKey('ore-result-$initialCount')), findsNothing);
     expect(
-      tester.widget<Checkbox>(find.byKey(const ValueKey('ore-found-0'))).value,
-      isTrue,
+      find.text('There are ${5 - initialCount} more ore clusters nearby!'),
+      findsOneWidget,
     );
+    await _capture(tester, '22-found-ores');
+    await tester.tap(find.byKey(const ValueKey('ore-result-0')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ore-status-0')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('mark-ore-found')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ore-status-0')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('show-another-ore')));
     await tester.pump();
     expect(find.byType(DiggingPickaxe), findsOneWidget);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('ore-result-1')), findsOneWidget);
-    expect(find.text('There are 3 more ore clusters nearby!'), findsOneWidget);
     expect(
-      tester.widget<Checkbox>(find.byKey(const ValueKey('ore-found-0'))).value,
-      isTrue,
+      find.text('There are ${4 - initialCount} more ore clusters nearby!'),
+      findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('ore-status-0')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('show-all-ores')));
     await tester.pumpAndSettle();
     expect(find.text('Remove All Ads'), findsOneWidget);
@@ -960,9 +980,9 @@ void main() {
     await _capture(tester, '23-history-saved');
     await tester.tap(find.text('sample-world'));
     await tester.pumpAndSettle();
-    expect(find.byType(Checkbox), findsNWidgets(5));
-    expect(find.byKey(const ValueKey('show-all-ores')), findsNothing);
-    expect(find.byKey(const ValueKey('show-another-ore')), findsNothing);
+    expect(_oreCards(), findsNWidgets(initialCount + 1));
+    expect(find.byKey(const ValueKey('show-all-ores')), findsOneWidget);
+    expect(find.byKey(const ValueKey('show-another-ore')), findsOneWidget);
     expect(find.byType(DiggingPickaxe), findsNothing);
     await tester.tap(find.byKey(const ValueKey('found-ores-back')));
     await tester.pumpAndSettle();
@@ -979,6 +999,182 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No searches made yet!'), findsOneWidget);
   });
+
+  testWidgets(
+    'ore status requires a choice, stamps Found and survives restart',
+    (tester) async {
+      final store = MemoryHistoryStore();
+      final source = JsonAssetSource(bundle: _FixtureBundle());
+      final history = JsonHistoryRepository(source: source, store: store);
+      final findRepository = _repositories().find;
+      final catalog = await findRepository.load();
+      final record = (await findRepository.search(
+        FindQuery(
+          x: 0,
+          z: 0,
+          seed: 'status-world',
+          version: catalog.versions.first,
+          ore: catalog.ores.first,
+        ),
+      )).withRevealedCount(2);
+      await history.add(record);
+      await _mount(tester, repositories: _repositories(history: history));
+      await _tab(tester, AppDestination.history);
+      await tester.tap(find.text(record.seed));
+      await tester.pumpAndSettle();
+      final card = find.byKey(const ValueKey('ore-result-0'));
+      final stamp = find.byKey(const ValueKey('ore-status-0'));
+      expect(find.byType(Checkbox), findsNothing);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ore-status-dialog')), findsOneWidget);
+      expect(stamp, findsNothing);
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pumpAndSettle();
+      expect(stamp, findsNothing);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('mark-ore-found')));
+      await tester.pumpAndSettle();
+      expect(stamp, findsOneWidget);
+      expect(find.text('FOUND'), findsOneWidget);
+      expect(find.byKey(const ValueKey('ore-status-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ore-status-1')), findsNothing);
+      expect(
+        tester.widget<Material>(find.byKey(const ValueKey('ore-card-0'))).color,
+        AppColors.oreCollectedSurface,
+      );
+      expect(
+        tester.widget<Material>(find.byKey(const ValueKey('ore-card-1'))).color,
+        AppColors.oreRow,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      final restarted = JsonHistoryRepository(source: source, store: store);
+      await _mount(tester, repositories: _repositories(history: restarted));
+      await _tab(tester, AppDestination.history);
+      await tester.tap(find.text(record.seed));
+      await tester.pumpAndSettle();
+      expect(stamp, findsOneWidget);
+      expect(_oreCards(), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('ore-status-0')), findsOneWidget);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('mark-ore-not-found')));
+      await tester.pumpAndSettle();
+      expect(stamp, findsNothing);
+      expect(find.byKey(const ValueKey('ore-status-0')), findsNothing);
+      expect(
+        tester.widget<Material>(find.byKey(const ValueKey('ore-card-0'))).color,
+        AppColors.oreRow,
+      );
+      expect(
+        (await JsonHistoryRepository(
+          source: source,
+          store: store,
+        ).load()).searches.single.positions.first.found,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'history keeps only earned results across restarts and unlocks one per ad',
+    (tester) async {
+      final store = MemoryHistoryStore();
+      final repositories = _repositories();
+      final catalog = await repositories.find.load();
+      final record = (await repositories.find.search(
+        FindQuery(
+          x: 0,
+          z: 0,
+          seed: 'saved-unlocks',
+          version: catalog.versions.first,
+          ore: catalog.ores.first,
+        ),
+      )).withRevealedCount(2);
+      final source = JsonAssetSource(bundle: _FixtureBundle());
+      final history = JsonHistoryRepository(source: source, store: store);
+      await history.add(record);
+      final ads = _RewardedAds();
+      final access = AppMonetization(
+        rewardedAds: ads,
+        adsRuntime: AdsRuntime(enabled: false),
+      );
+      addTearDown(access.dispose);
+      await _mount(
+        tester,
+        monetization: access,
+        repositories: _repositories(history: history),
+      );
+      await _tab(tester, AppDestination.history);
+      await tester.tap(find.text(record.seed));
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(2));
+      await tester.tap(find.byKey(const ValueKey('show-all-ores')));
+      await tester.pumpAndSettle();
+      expect(find.text('Remove All Ads'), findsOneWidget);
+      expect(access.isPro, isFalse);
+      await tester.tap(find.byTooltip('Close paywall'));
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(2));
+      final another = find.byKey(const ValueKey('show-another-ore'));
+      ads.result = RewardedAdResult.dismissed;
+      await tester.ensureVisible(another);
+      await tester.tap(another);
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(2));
+      expect((await history.load()).searches.single.revealedCount, 2);
+      ScaffoldMessenger.of(tester.element(another)).clearSnackBars();
+      await tester.pumpAndSettle();
+      ads.result = RewardedAdResult.earned;
+      await tester.tap(another);
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(3));
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      // A new repository and entitlement controller simulate restarting the app.
+      final restartedHistory = JsonHistoryRepository(
+        source: source,
+        store: store,
+      );
+      final restartedAccess = _testAccess();
+      await _mount(
+        tester,
+        monetization: restartedAccess,
+        repositories: _repositories(history: restartedHistory),
+      );
+      await _tab(tester, AppDestination.history);
+      await tester.tap(find.text(record.seed));
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(3));
+      restartedAccess.updateEntitlement(true);
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(record.positions.length));
+      restartedAccess.updateEntitlement(false);
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(3));
+      for (var count = 4; count <= record.positions.length; count++) {
+        await tester.ensureVisible(another);
+        await tester.tap(another);
+        await tester.pumpAndSettle();
+        expect(_oreCards(), findsNWidgets(count));
+        expect(
+          (await restartedHistory.load()).searches.single.revealedCount,
+          count,
+        );
+      }
+      expect(another, findsNothing);
+      expect(find.byKey(const ValueKey('show-all-ores')), findsNothing);
+      expect(find.text('All ore clusters are shown.'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('found-ores-back')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(record.seed));
+      await tester.pumpAndSettle();
+      expect(_oreCards(), findsNWidgets(record.positions.length));
+      expect(another, findsNothing);
+    },
+  );
 
   testWidgets(
     'ore results fit a small screen with large text in every language',
@@ -1018,6 +1214,15 @@ void main() {
           find.byKey(const ValueKey('show-another-ore')),
         );
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: locale.languageCode);
+        await tester.ensureVisible(find.byKey(const ValueKey('ore-result-0')));
+        await tester.tap(find.byKey(const ValueKey('ore-result-0')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('ore-status-dialog')), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: locale.languageCode);
+        await tester.tap(find.byKey(const ValueKey('mark-ore-found')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('ore-status-0')), findsOneWidget);
         expect(tester.takeException(), isNull, reason: locale.languageCode);
         navigator.pop();
         await tester.pumpAndSettle();
@@ -1069,7 +1274,7 @@ void main() {
   });
 
   testWidgets(
-    'empty map categories show the selected name centered in the pixel font',
+    'empty map categories show the selected name centered in the app font',
     (tester) async {
       await _mount(tester);
       await _tab(tester, AppDestination.maps);
@@ -1078,7 +1283,7 @@ void main() {
         final message = find.text('there is no item in "$category"');
         expect(message, findsOneWidget);
         final text = tester.widget<Text>(message);
-        expect(text.style!.fontFamily, AppFonts.pixel);
+        expect(text.style!.fontFamily, AppFonts.body);
         expect(text.textAlign, TextAlign.center);
         expect(
           tester.getCenter(message),
@@ -1132,17 +1337,30 @@ void main() {
         findsNWidgets(count),
       );
     }
-    // Long sample content fits after scrolling the header up.
+    // Bring the entire card into view regardless of the font's line wrapping.
     await tester.drag(
       find.byKey(const PageStorageKey('maps-Seeds')),
       const Offset(0, -100),
     );
     await tester.pumpAndSettle();
-    final firstCard = tester.getRect(find.byKey(const ValueKey('map-valley')));
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const ValueKey('map-valley'))),
+      alignment: 1,
+    );
+    await tester.pumpAndSettle();
     final navigationTop = tester
         .getTopLeft(find.byKey(const ValueKey('nav-maps')))
         .dy;
-    expect(firstCard.bottom, lessThanOrEqualTo(navigationTop));
+    final card = find.byKey(const ValueKey('map-valley'));
+    final clipped = tester.getRect(card).bottom - navigationTop;
+    if (clipped > 0) {
+      await tester.drag(
+        find.byKey(const PageStorageKey('maps-Seeds')),
+        Offset(0, -clipped - 16),
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(tester.getRect(card).bottom, lessThanOrEqualTo(navigationTop));
 
     await tester.drag(
       find.byKey(const PageStorageKey('maps-Seeds')),

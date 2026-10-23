@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../../../core/data/json_asset_source.dart';
 import '../../../core/models/search_record.dart';
@@ -8,6 +9,8 @@ import 'history_store.dart';
 abstract interface class HistoryRepository {
   Future<HistoryData> load();
   Future<void> add(SearchRecord record);
+  Future<void> reveal(String id, int count);
+  Future<void> setFound(String id, int index, bool found);
   Future<void> remove(String id);
 }
 
@@ -69,6 +72,23 @@ class JsonHistoryRepository implements HistoryRepository {
   Future<void> add(SearchRecord record) => _mutate((records) {
     records.removeWhere((item) => item.id == record.id);
     records.insert(0, record);
+  });
+
+  @override
+  Future<void> reveal(String id, int count) => _mutate((records) {
+    final index = records.indexWhere((record) => record.id == id);
+    if (index < 0) return;
+    final record = records[index];
+    records[index] = record.withRevealedCount(
+      math.max(record.revealedCount, count),
+    );
+  });
+
+  @override
+  Future<void> setFound(String id, int index, bool found) => _mutate((records) {
+    final recordIndex = records.indexWhere((record) => record.id == id);
+    if (recordIndex < 0) return;
+    records[recordIndex] = records[recordIndex].withFound(index, found);
   });
 
   @override

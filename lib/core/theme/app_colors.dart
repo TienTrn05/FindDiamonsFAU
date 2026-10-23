@@ -18,6 +18,8 @@ abstract final class AppColors {
   static const indicatorInactive = Color(0xFF505351);
   static const oreRow = Color(0xFFF6FBEF);
   static const oreRowBorder = Color(0xFF50AEC8);
+  static const oreCollectedSurface = Color(0xFFF3EDE6);
+  static const oreStampInk = Color(0xFFB23838);
   static const heroBackground = Color(0xFF82BBD0);
   static const scrim = Color(0x99000000);
   static const loadingOverlay = Color(0x99FFFFFF);

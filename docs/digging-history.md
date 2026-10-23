@@ -5,8 +5,8 @@
 1. Find → Start digging → nhận kết quả từ `FindRepository`.
 2. `AppShell` chờ `HistoryBloc.record()` lưu bản ghi rồi mở màn Found Ores.
 3. History hiển thị mỗi lần tìm kiếm thành một card: icon loại quặng của kết quả đầu tiên, seed, tọa độ X/Z đã nhập và phiên bản. Bản ghi mới nhất nằm trên cùng.
-4. Bấm card History mở đầy đủ các vị trí đã lưu, không chạy lại digging, không hiện animation chờ và không yêu cầu quảng cáo để mở thêm kết quả. Luồng digging mới vẫn giữ cơ chế Free/Pro/rewarded hiện có.
-5. Nút thùng rác xóa bản ghi và lưu thay đổi xuống JSON.
+4. Bấm card History chỉ mở các vị trí đã được mở khóa, không chạy lại digging. Lượt đào miễn phí mở ngẫu nhiên 1–2 vị trí; Show another cần nhận thưởng quảng cáo để mở thêm một vị trí; Show all yêu cầu Pro. `revealedCount` được lưu theo từng bản ghi và giữ nguyên khi khởi động lại.
+5. Chạm card quặng mở bảng chọn Found / Not found. Card Found có nền giấy nhạt và dấu mộc FOUND đỏ đóng nghiêng lên vùng icon quặng, giữ rõ tọa độ và số lượng. Không có checkbox hoặc tag bên ngoài. Trạng thái `found` được lưu theo từng vị trí, giữ nguyên khi mở lại History và có thể đổi về Not found để bỏ dấu mộc.
 
 Mỗi lần digging hiện chỉ tìm một loại quặng, nên icon của card cũng là loại quặng xuất hiện ở dòng kết quả đầu tiên.
 
@@ -30,9 +30,10 @@ Ví dụ một bản ghi:
       "oreId": "diamond",
       "oreName": "Diamond",
       "positions": [
-        { "x": 63, "y": -54, "z": 34, "count": 3 },
-        { "x": 40, "y": -41, "z": 30, "count": 9 }
+        { "x": 63, "y": -54, "z": 34, "count": 3, "found": true },
+        { "x": 40, "y": -41, "z": 30, "count": 9, "found": false }
       ],
+      "revealedCount": 1,
       "createdAt": "2026-10-22T12:00:00.000Z"
     }
   ]

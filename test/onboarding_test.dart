@@ -112,12 +112,12 @@ Future<void> _openTutorial(WidgetTester tester) async {
 
 void main() {
   setUpAll(() async {
-    final pixel = FontLoader(AppFonts.pixel)
-      ..addFont(rootBundle.load('assets/fonts/PixelifySans.ttf'));
-    await pixel.load();
     final body = FontLoader(AppFonts.body)
-      ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'));
+      ..addFont(rootBundle.load('assets/fonts/Monocraft-Regular.ttf'));
     await body.load();
+    await (FontLoader(
+      'Roboto',
+    )..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))).load();
     final icons = FontLoader('MaterialIcons')
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();

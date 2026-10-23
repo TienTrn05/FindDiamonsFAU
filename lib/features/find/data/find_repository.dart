@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../../core/data/json_asset_source.dart';
 import '../../../core/models/search_record.dart';
 import '../models/find_catalog.dart';
@@ -8,8 +10,12 @@ abstract interface class FindRepository {
 }
 
 class JsonFindRepository implements FindRepository {
-  JsonFindRepository({this.source = const JsonAssetSource()});
+  JsonFindRepository({
+    this.source = const JsonAssetSource(),
+    math.Random? random,
+  }) : _random = random ?? math.Random();
   final JsonAssetSource source;
+  final math.Random _random;
   Future<FindCatalog>? _catalog;
 
   @override
@@ -39,6 +45,7 @@ class JsonFindRepository implements FindRepository {
       oreId: query.ore.id,
       oreName: query.ore.name,
       createdAt: now,
+      revealedCount: math.min(catalog.positions.length, 1 + _random.nextInt(2)),
       positions: catalog.positions
           .map(
             (position) => OrePosition(

@@ -134,6 +134,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       onGoPro: _goPro,
       onHelp: _help,
       onFound: _recordSearch,
+      onReveal: _history.reveal,
+      onFoundChanged: _history.setFound,
       repository: _repositories.find,
     ),
     HistoryPage(controller: _history, onGoPro: _goPro, onHelp: _help),

@@ -321,6 +321,79 @@ void main() {
   });
 
   testWidgets(
+    'banner retries a network failure and renders after the connection recovers',
+    (tester) async {
+      final access = AppMonetization();
+      await tester.pumpWidget(
+        MonetizationScope(
+          controller: access,
+          child: const MaterialApp(
+            home: Scaffold(body: SizedBox(width: 390, child: BannerAdSlot())),
+          ),
+        ),
+      );
+      await tester.pump();
+      final firstId =
+          calls.singleWhere((c) => c.method == 'loadBannerAd').arguments['adId']
+              as int;
+      await emit(firstId, 'onAdFailedToLoad', {
+        'loadAdError': LoadAdError(
+          2,
+          'com.google.android.gms.ads',
+          'Network error.',
+          null,
+        ),
+      });
+      await tester.pump(const Duration(seconds: 29));
+      expect(calls.where((c) => c.method == 'loadBannerAd'), hasLength(1));
+      await tester.pump(const Duration(seconds: 1));
+      final loads = calls.where((c) => c.method == 'loadBannerAd').toList();
+      expect(loads, hasLength(2));
+      expect(loads.last.arguments['adId'], isNot(firstId));
+      await emit(loads.last.arguments['adId'] as int, 'onAdLoaded');
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('bottom-ad-banner')), findsOneWidget);
+      await tester.pump(const Duration(minutes: 2));
+      expect(calls.where((c) => c.method == 'loadBannerAd'), hasLength(2));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      access.dispose();
+    },
+  );
+
+  testWidgets('enabling Pro cancels a pending banner retry', (tester) async {
+    final access = AppMonetization();
+    await tester.pumpWidget(
+      MonetizationScope(
+        controller: access,
+        child: const MaterialApp(
+          home: Scaffold(body: SizedBox(width: 390, child: BannerAdSlot())),
+        ),
+      ),
+    );
+    await tester.pump();
+    final id =
+        calls.singleWhere((c) => c.method == 'loadBannerAd').arguments['adId']
+            as int;
+    await emit(id, 'onAdFailedToLoad', {
+      'loadAdError': LoadAdError(
+        2,
+        'com.google.android.gms.ads',
+        'Network error.',
+        null,
+      ),
+    });
+    access.updateEntitlement(true);
+    await tester.pump();
+    await tester.pump(const Duration(minutes: 2));
+    expect(calls.where((c) => c.method == 'loadBannerAd'), hasLength(1));
+    expect(find.byType(AdWidget), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    access.dispose();
+  });
+
+  testWidgets(
     'banner and Special Offer render SDK views and disappear with Pro',
     (tester) async {
       final access = AppMonetization();

@@ -7,14 +7,14 @@ import 'game_palette.dart';
 /// Typography inside the reference game artwork, separate from app controls.
 abstract final class GameTextStyles {
   static const helpDebug = TextStyle(
-    fontFamily: AppFonts.pixel,
+    fontFamily: AppFonts.body,
     fontSize: 10,
     color: AppColors.onPrimary,
     height: 1.25,
     shadows: [Shadow(color: AppColors.text, blurRadius: 2)],
   );
   static const settings = TextStyle(
-    fontFamily: AppFonts.pixel,
+    fontFamily: AppFonts.body,
     fontSize: 8,
     color: GamePalette.settingsText,
   );
@@ -22,19 +22,19 @@ abstract final class GameTextStyles {
   static const control = TextStyle(color: GamePalette.controlText);
   static const input = TextStyle(color: GamePalette.inputText);
   static const callout = TextStyle(
-    fontSize: 29,
+    fontSize: 25,
     fontWeight: FontWeight.w800,
     color: AppColors.onPrimary,
     height: 1.4,
   );
   static const highlightCallout = TextStyle(
-    fontSize: 31,
+    fontSize: 27,
     fontWeight: FontWeight.w900,
     height: 1.25,
     color: GamePalette.highlight,
   );
   static TextStyle get outlinedCallout => TextStyle(
-    fontSize: 31,
+    fontSize: 27,
     fontWeight: FontWeight.w900,
     height: 1.25,
     foreground: Paint()

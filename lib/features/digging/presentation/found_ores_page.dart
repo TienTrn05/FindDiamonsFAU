@@ -18,6 +18,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../bloc/digging_bloc.dart';
+import 'ore_status_dialog.dart';
+import 'ore_found_stamp.dart';
 
 class FoundOresPage extends StatefulWidget {
   const FoundOresPage({
@@ -26,7 +28,8 @@ class FoundOresPage extends StatefulWidget {
     required this.onGoPro,
     required this.onHelp,
     this.showLoading = true,
-    this.showAllInitially = false,
+    this.onReveal,
+    this.onFoundChanged,
     this.monetization,
     this.revealDuration = const Duration(milliseconds: 1100),
   });
@@ -34,7 +37,8 @@ class FoundOresPage extends StatefulWidget {
   final VoidCallback onGoPro;
   final VoidCallback onHelp;
   final bool showLoading;
-  final bool showAllInitially;
+  final Future<void> Function(int count)? onReveal;
+  final Future<void> Function(int index, bool found)? onFoundChanged;
   final AppMonetization? monetization;
   final Duration revealDuration;
 
@@ -44,10 +48,7 @@ class FoundOresPage extends StatefulWidget {
 
 class _FoundOresPageState extends State<FoundOresPage>
     with SingleTickerProviderStateMixin {
-  late final _bloc = DiggingBloc(
-    widget.record,
-    showAllInitially: widget.showAllInitially,
-  );
+  late final _bloc = DiggingBloc(widget.record);
   late final _progress = AnimationController(
     vsync: this,
     duration: widget.revealDuration,
@@ -56,6 +57,7 @@ class _FoundOresPageState extends State<FoundOresPage>
   bool _nextPending = false;
   bool _adPending = false;
   bool _preloadScheduled = false;
+  bool _statusDialogOpen = false;
   late final _fallbackMonetization = AppMonetization();
   AppMonetization get _access =>
       widget.monetization ??
@@ -139,6 +141,15 @@ class _FoundOresPageState extends State<FoundOresPage>
     }
     if (result == RewardedAdResult.earned) {
       access.rememberRevealed(widget.record.id, count + 1);
+      try {
+        await widget.onReveal?.call(count + 1);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: AppText('History could not be saved.')),
+          );
+        }
+      }
     }
     if (!mounted) return;
     setState(() => _adPending = false);
@@ -162,65 +173,111 @@ class _FoundOresPageState extends State<FoundOresPage>
     _progress.forward(from: 0);
   }
 
+  Future<void> _chooseStatus(int index) async {
+    if (_statusDialogOpen || _adPending || _loading) return;
+    _statusDialogOpen = true;
+    final position = widget.record.positions[index];
+    bool? choice;
+    try {
+      choice = await showDialog<bool>(
+        context: context,
+        builder: (_) => OreStatusDialog(position: position, ore: _ore),
+      );
+    } finally {
+      _statusDialogOpen = false;
+    }
+    if (!mounted || choice == null) return;
+    _bloc.setFound(index, choice);
+    try {
+      await widget.onFoundChanged?.call(index, choice);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: AppText('History could not be saved.')),
+        );
+      }
+    }
+  }
+
   Widget _oreCard(int index) {
     final position = widget.record.positions[index];
+    final found = _bloc.isFound(index);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Material(
-        color: AppColors.oreRow,
-        borderRadius: AppRadii.card,
-        child: InkWell(
-          key: ValueKey('ore-result-$index'),
+      child: Semantics(
+        label: context.tr(found ? 'Found' : 'Not found'),
+        button: true,
+        child: Material(
+          key: ValueKey('ore-card-$index'),
+          color: found ? AppColors.oreCollectedSurface : AppColors.oreRow,
           borderRadius: AppRadii.card,
-          onTap: () => _bloc.toggleFound(index),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 80),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.lg,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: AppRadii.card,
-              border: Border.all(color: AppColors.oreRowBorder, width: 3),
-            ),
-            child: Row(
-              children: [
-                Checkbox(
-                  key: ValueKey('ore-found-$index'),
-                  value: _bloc.isFound(index),
-                  shape: const CircleBorder(),
-                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                  activeColor: AppColors.primary,
-                  onChanged: (_) => _bloc.toggleFound(index),
-                ),
-                Expanded(
-                  child: Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: AppSpacing.sm,
+          child: InkWell(
+            key: ValueKey('ore-result-$index'),
+            borderRadius: AppRadii.card,
+            onTap: () => _chooseStatus(index),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 80),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                borderRadius: AppRadii.card,
+                border: Border.all(color: AppColors.oreRowBorder, width: 3),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        AppText(
+                          'X: ${position.x}',
+                          style: AppTextStyles.resultCoordinates,
+                        ),
+                        AppText(
+                          'Y: ${position.y}',
+                          style: AppTextStyles.resultCoordinates,
+                        ),
+                        AppText(
+                          'Z: ${position.z}',
+                          style: AppTextStyles.resultCoordinates,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppText(
-                        'X: ${position.x}',
-                        style: AppTextStyles.resultCoordinates,
+                      SizedBox(
+                        width: 104,
+                        height: 40,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          clipBehavior: Clip.none,
+                          children: [
+                            Opacity(
+                              opacity: found ? .18 : 1,
+                              child: OreIcon(ore: _ore, size: 34),
+                            ),
+                            if (found)
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: OreFoundStamp(
+                                  key: ValueKey('ore-status-$index'),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: AppSpacing.xs),
                       AppText(
-                        'Y: ${position.y}',
-                        style: AppTextStyles.resultCoordinates,
-                      ),
-                      AppText(
-                        'Z: ${position.z}',
-                        style: AppTextStyles.resultCoordinates,
+                        'x${position.count}',
+                        style: AppTextStyles.oreStatus,
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                OreIcon(ore: _ore, size: 34),
-                const SizedBox(width: AppSpacing.xs),
-                AppText(
-                  'x${position.count}',
-                  style: AppTextStyles.resultCoordinates,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -27,6 +27,65 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
+    'revealed progress survives restart, never decreases and stops at the total',
+    () async {
+      final store = MemoryHistoryStore();
+      final repository = JsonHistoryRepository(store: store);
+      final record = _record('progress');
+      await repository.add(record);
+      await repository.reveal(record.id, 2);
+      await repository.reveal(record.id, 1);
+      final restarted = JsonHistoryRepository(store: store);
+      expect((await restarted.load()).searches.single.revealedCount, 2);
+      await restarted.reveal(record.id, 99);
+      expect((await restarted.load()).searches.single.revealedCount, 2);
+      await restarted.remove(record.id);
+      await restarted.reveal(record.id, 2);
+      expect((await restarted.load()).searches, isEmpty);
+    },
+  );
+
+  test('legacy history starts with one unlocked item', () {
+    final json = _record('legacy').toJson()..remove('revealedCount');
+    expect(SearchRecord.fromJson(json).revealedCount, 1);
+  });
+
+  test(
+    'found status persists per item, can be cleared and preserves ad unlocks',
+    () async {
+      final store = MemoryHistoryStore();
+      final repository = JsonHistoryRepository(store: store);
+      final record = _record('status');
+      await repository.add(record);
+      await Future.wait([
+        repository.setFound(record.id, 0, true),
+        repository.reveal(record.id, 2),
+      ]);
+      final restarted = JsonHistoryRepository(store: store);
+      var saved = (await restarted.load()).searches.single;
+      expect(saved.positions.map((item) => item.found), [true, false]);
+      expect(saved.revealedCount, 2);
+      await restarted.setFound(record.id, 1, true);
+      await restarted.setFound(record.id, 0, false);
+      await restarted.setFound(record.id, -1, true);
+      await restarted.setFound(record.id, 99, true);
+      saved = (await JsonHistoryRepository(
+        store: store,
+      ).load()).searches.single;
+      expect(saved.positions.map((item) => item.found), [false, true]);
+      expect(saved.revealedCount, 2);
+      final legacy = record.toJson();
+      for (final position in legacy['positions'] as List) {
+        (position as Map).remove('found');
+      }
+      expect(
+        SearchRecord.fromJson(legacy).positions.every((item) => !item.found),
+        isTrue,
+      );
+    },
+  );
+
+  test(
     'JSON file restores complete digging results and persists deletion',
     () async {
       final directory = await Directory.systemTemp.createTemp(
