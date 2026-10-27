@@ -12,16 +12,17 @@
       ],
       "online": 8777,
       "capacity": 10000,
-      "address": "demo-complex.example",
-      "website": "https://example.com/servers/complex",
+      "address": "hub.mc-complex.com",
+      "website": "https://www.mc-complex.com/",
       "port": 19132,
       "bannerLabel": "SKYBLOCK",
-      "bannerImage": "assets/images/block_landscape.png",
+      "bannerImage": "assets/images/servers/complex.gif",
       "description": "Welcome to Complex Gaming! Discover new worlds and enjoy SMP, Skyblock and Survival with a friendly community. Build with friends, join community events and start your next adventure. More game modes, server news and community information will be available here soon.",
       "status": "online"
     },
     {
       "id": "mystic",
+      "bannerImage": "assets/images/servers/mystic.gif",
       "rank": 2,
       "name": "MysticMC [1.21]",
       "tags": [
@@ -30,11 +31,13 @@
       ],
       "online": 110,
       "capacity": 500,
-      "address": "demo-mystic.example",
+      "address": "play.mysticmc.co",
+      "website": "https://mysticmc.co/",
       "status": "online"
     },
     {
       "id": "sun",
+      "bannerImage": "assets/images/servers/sun.gif",
       "rank": 3,
       "name": "SunRealms",
       "tags": [
@@ -43,11 +46,13 @@
       ],
       "online": 18611,
       "capacity": 30000,
-      "address": "demo-sun.example",
+      "address": "web.sunrealms.net",
+      "website": "https://sunrealms.net/",
       "status": "online"
     },
     {
       "id": "mchub",
+      "bannerImage": "assets/images/servers/mchub.gif",
       "rank": 4,
       "name": "McHub [1.21]",
       "tags": [
@@ -56,7 +61,8 @@
       ],
       "online": 28348,
       "capacity": 28349,
-      "address": "demo-mchub.example",
+      "address": "ms.mchub.com",
+      "website": "https://mchub.com/",
       "status": "online"
     },
     {

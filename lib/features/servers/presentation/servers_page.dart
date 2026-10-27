@@ -4,6 +4,7 @@ import '../../../common/widgets/landscape_background.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../../common/widgets/voxel_character.dart';
 import '../../../core/responsive/app_layout.dart';
+import '../../../core/monetization/app_monetization.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -11,6 +12,7 @@ import '../bloc/servers_bloc.dart';
 import '../data/servers_repository.dart';
 import '../models/server_catalog.dart';
 import 'server_info_page.dart';
+import 'server_banner.dart';
 
 class ServersPage extends StatefulWidget {
   const ServersPage({super.key, this.repository});
@@ -29,12 +31,20 @@ class _ServersPageState extends State<ServersPage> {
     super.dispose();
   }
 
-  void _details(ServerItem server) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      settings: RouteSettings(name: '/servers/${server.id}'),
-      builder: (_) => ServerInfoPage(server: server),
-    ),
-  );
+  void _details(ServerItem server) {
+    final access = MonetizationScope.maybeOf(context);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        settings: RouteSettings(name: '/servers/${server.id}'),
+        builder: (_) => access == null
+            ? ServerInfoPage(server: server)
+            : MonetizationScope(
+                controller: access,
+                child: ServerInfoPage(server: server),
+              ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => LandscapeBackground(
@@ -144,65 +154,76 @@ class _ServerCard extends StatelessWidget {
               bottom: BorderSide(color: AppColors.action, width: 3.5),
             ),
           ),
-          padding: const EdgeInsets.only(top: 46),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 70,
-                  alignment: Alignment.center,
-                  color: AppColors.rank,
-                  child: AppText('#${server.rank}', style: AppTextStyles.rank),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AppText(server.name, style: AppTextStyles.serverTitle),
-                        const SizedBox(height: AppSpacing.sm),
-                        Wrap(
-                          spacing: AppSpacing.xs,
-                          runSpacing: AppSpacing.xs,
-                          children: server.tags
-                              .map(
-                                (tag) => DecoratedBox(
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.chipSurface,
-                                    borderRadius: AppRadii.pill,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.xs,
-                                      vertical: AppSpacing.xs,
-                                    ),
-                                    child: AppText(
-                                      tag,
-                                      style: AppTextStyles.tag,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                        if (compact) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          _count,
-                        ],
-                      ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ServerBanner(server: server),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 70,
+                      alignment: Alignment.center,
+                      color: AppColors.rank,
+                      child: AppText(
+                        '#${server.rank}',
+                        style: AppTextStyles.rank,
+                      ),
                     ),
-                  ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppText(
+                              server.name,
+                              style: AppTextStyles.serverTitle,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Wrap(
+                              spacing: AppSpacing.xs,
+                              runSpacing: AppSpacing.xs,
+                              children: server.tags
+                                  .map(
+                                    (tag) => DecoratedBox(
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.chipSurface,
+                                        borderRadius: AppRadii.pill,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: AppSpacing.xs,
+                                          vertical: AppSpacing.xs,
+                                        ),
+                                        child: AppText(
+                                          tag,
+                                          style: AppTextStyles.tag,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                            if (compact) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              _count,
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (!compact)
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.sm),
+                        child: Center(child: _count),
+                      ),
+                  ],
                 ),
-                if (!compact)
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.sm),
-                    child: Center(child: _count),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
