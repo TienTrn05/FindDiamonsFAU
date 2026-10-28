@@ -1,4 +1,5 @@
 import '../../../common/widgets/app_text.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -37,14 +38,25 @@ class _SkinsPageState extends State<SkinsPage> {
       MonetizationScope.maybeOf(context) ?? _fallbackMonetization;
   bool _dialogOpen = false;
   bool _sharing = false;
+  final _searchController = TextEditingController();
+  Timer? _searchDebounce;
   final _skinImage = GlobalKey();
   final _shareOrigin = GlobalKey();
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
     _bloc.dispose();
     _fallbackMonetization.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _bloc.search(value);
+    });
   }
 
   Future<void> _share() async {
@@ -145,39 +157,79 @@ class _SkinsPageState extends State<SkinsPage> {
         child: ResourceView<List<SkinItem>>(
           controller: _bloc,
           builder: (context, skins) => Padding(
-            padding: AppInsets.screen,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: LayoutBuilder(
               builder: (context, constraints) => Column(
                 children: [
-                  SizedBox(
-                    height: math.min(
-                      360,
-                      (constraints.maxHeight - AppSpacing.md) * .6,
-                    ),
-                    child: _preview(),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Expanded(
-                    child: GridView.builder(
-                      key: const PageStorageKey('skins-grid'),
-                      padding: EdgeInsets.zero,
-                      itemCount: skins.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: AppLayout.gridColumns(
-                          constraints.maxWidth,
+                  SizedBox(height: 46, child: _searchField()),
+                  const SizedBox(height: 6),
+                  if (skins.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: AppText(
+                          'No skins found.',
+                          style: AppTextStyles.onPrimaryPixelBody,
                         ),
-                        mainAxisSpacing: AppSpacing.xl,
-                        crossAxisSpacing: AppSpacing.xl,
-                        childAspectRatio: .82,
                       ),
-                      itemBuilder: (_, index) => _skinCard(skins[index]),
+                    )
+                  else ...[
+                    SizedBox(
+                      height: math.min(
+                        285.0,
+                        (constraints.maxHeight - 80).clamp(0.0, 10000.0) * .46,
+                      ),
+                      child: _preview(),
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Expanded(
+                      child: GridView.builder(
+                        key: const PageStorageKey('skins-grid'),
+                        padding: EdgeInsets.zero,
+                        itemCount: skins.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: AppLayout.gridColumns(
+                            constraints.maxWidth,
+                          ),
+                          mainAxisSpacing: AppSpacing.xl,
+                          crossAxisSpacing: AppSpacing.xl,
+                          childAspectRatio: .82,
+                        ),
+                        itemBuilder: (_, index) => _skinCard(skins[index]),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
         ),
+      ),
+    ),
+  );
+
+  Widget _searchField() => TextField(
+    controller: _searchController,
+    onChanged: _onSearchChanged,
+    textInputAction: TextInputAction.search,
+    style: AppTextStyles.fieldValue,
+    decoration: InputDecoration(
+      hintText: context.tr('Search by name or category'),
+      hintStyle: AppTextStyles.caption,
+      prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+      filled: true,
+      fillColor: AppColors.surface,
+      contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      border: OutlineInputBorder(
+        borderRadius: AppRadii.standard,
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: AppRadii.standard,
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: AppRadii.standard,
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
       ),
     ),
   );
@@ -198,9 +250,9 @@ class _SkinsPageState extends State<SkinsPage> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md,
-                    AppSpacing.xxl,
+                    16,
                     AppSpacing.md,
-                    AppSpacing.xxl,
+                    16,
                   ),
                   child: RepaintBoundary(
                     key: _skinImage,
@@ -210,6 +262,7 @@ class _SkinsPageState extends State<SkinsPage> {
                         key: const ValueKey('skin-3d-viewer'),
                         palette: _bloc.selected.palette,
                         walking: _bloc.walking,
+                        skinTextureUrl: _bloc.selected.downloadUrl,
                       ),
                     ),
                   ),
@@ -259,7 +312,7 @@ class _SkinsPageState extends State<SkinsPage> {
         ColoredBox(
           color: AppColors.primary,
           child: SizedBox(
-            height: 60,
+            height: 52,
             child: Row(
               children: [
                 Expanded(
@@ -268,7 +321,9 @@ class _SkinsPageState extends State<SkinsPage> {
                     onPressed: () => _bloc.setWalking(false),
                     child: AppText(
                       'Idle',
-                      style: AppTextStyles.onPrimaryPixelField,
+                      style: AppTextStyles.onPrimaryPixelField.copyWith(
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -282,7 +337,9 @@ class _SkinsPageState extends State<SkinsPage> {
                     onPressed: () => _bloc.setWalking(true),
                     child: AppText(
                       'Walk',
-                      style: AppTextStyles.onPrimaryPixelField,
+                      style: AppTextStyles.onPrimaryPixelField.copyWith(
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -355,7 +412,7 @@ class _SkinsPageState extends State<SkinsPage> {
                     Positioned.fill(
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.md),
-                        child: VoxelCharacter(palette: skin.palette),
+                        child: _skinCardArtwork(skin),
                       ),
                     ),
                     if (_bloc.isLocked(skin, isPro: _access.isPro))
@@ -384,4 +441,14 @@ class _SkinsPageState extends State<SkinsPage> {
       ),
     ],
   );
+
+  Widget _skinCardArtwork(SkinItem skin) {
+    final previewUrl = skin.previewUrl;
+    if (previewUrl == null) return VoxelCharacter(palette: skin.palette);
+    return Image.network(
+      previewUrl.toString(),
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) => VoxelCharacter(palette: skin.palette),
+    );
+  }
 }

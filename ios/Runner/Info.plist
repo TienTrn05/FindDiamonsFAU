@@ -31,6 +31,13 @@
 	<true/>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Your permission allows us to use your activity across other companies' apps and websites to show more relevant ads.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connect to the local skin catalog service on your network.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<!-- Google sample App ID for development. Replace with your iOS AdMob App ID for release. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>

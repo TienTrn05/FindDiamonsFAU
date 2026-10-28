@@ -1,19 +1,43 @@
 import '../../../core/models/search_record.dart';
 
 class GameVersion {
-  const GameVersion({required this.id, required this.label});
-  factory GameVersion.fromJson(Map<String, dynamic> json) =>
-      GameVersion(id: json['id'] as String, label: json['label'] as String);
+  const GameVersion({
+    required this.id,
+    required this.label,
+    this.edition = 'java',
+    this.apiVersion = '',
+  });
+  factory GameVersion.fromJson(Map<String, dynamic> json) {
+    final id = json['id'] as String;
+    final label = json['label'] as String;
+    final version = RegExp(r'\d+\.\d+').firstMatch(label)?.group(0) ?? '';
+    return GameVersion(
+      id: id,
+      label: label,
+      edition: id.startsWith('bedrock') ? 'bedrock' : 'java',
+      apiVersion: version,
+    );
+  }
   final String id;
   final String label;
+  final String edition;
+  final String apiVersion;
 }
 
 class OreOption {
-  const OreOption({required this.id, required this.name});
-  factory OreOption.fromJson(Map<String, dynamic> json) =>
-      OreOption(id: json['id'] as String, name: json['name'] as String);
+  const OreOption({
+    required this.id,
+    required this.name,
+    this.availableFrom = '1.16',
+  });
+  factory OreOption.fromJson(Map<String, dynamic> json) => OreOption(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    availableFrom: json['availableFrom'] as String? ?? '1.16',
+  );
   final String id;
   final String name;
+  final String availableFrom;
 }
 
 class FindCatalog {

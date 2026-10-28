@@ -151,10 +151,10 @@ class _SdkAdViewState extends State<_SdkAdView> with WidgetsBindingObserver {
         return;
       }
       if (widget.placement == AdPlacement.banner) {
-        final size = await AdSize.getAnchoredAdaptiveBannerAdSize(
-          MediaQuery.orientationOf(context),
-          widget.width,
-        );
+        final size =
+            await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
+              widget.width.toInt(),
+            );
         if (!mounted) return;
         if (size == null) {
           _scheduleRetry();

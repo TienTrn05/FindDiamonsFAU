@@ -206,8 +206,10 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
                                   key: const ValueKey('server-add'),
                                   onPressed: () => _connectionDetails(context),
                                   style: _outline(AppColors.serverActionBorder),
-                                  child: const AppText(
-                                    'ADD TO BEDROCK SERVER LIST',
+                                  child: AppText(
+                                    server.edition.toLowerCase() == 'java'
+                                        ? 'ADD TO JAVA SERVER LIST'
+                                        : 'ADD TO BEDROCK SERVER LIST',
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
@@ -318,7 +320,13 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
                         borderRadius: AppRadii.card,
                       ),
                       child: AppText(
-                        server.description,
+                        [
+                          server.description,
+                          if (server.joinNote.isNotEmpty) server.joinNote,
+                          if (server.version != null)
+                            'Version: ${server.version}',
+                          if (server.motd != null) server.motd!,
+                        ].where((line) => line.isNotEmpty).join('\n\n'),
                         style: AppTextStyles.serverInfoBody,
                       ),
                     ),

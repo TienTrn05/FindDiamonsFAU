@@ -10,6 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../bloc/maps_bloc.dart';
+import '../data/api_maps_repository.dart';
 import '../data/maps_repository.dart';
 import '../models/map_catalog.dart';
 import 'map_details_page.dart';
@@ -24,9 +25,8 @@ class MapsPage extends StatefulWidget {
 }
 
 class _MapsPageState extends State<MapsPage> {
-  late final MapsBloc _bloc = MapsBloc(
-    widget.repository ?? JsonMapsRepository(),
-  )..load();
+  late final MapsBloc _bloc = MapsBloc(widget.repository ?? ApiMapsRepository())
+    ..load();
   @override
   void dispose() {
     _bloc.dispose();
@@ -119,49 +119,46 @@ class _MapsPageState extends State<MapsPage> {
   @override
   Widget build(BuildContext context) => ResourceView<MapCatalog>(
     controller: _bloc,
-    builder: (context, catalog) => SafeArea(
-      bottom: false,
-      child: CustomScrollView(
-        key: PageStorageKey('maps-${_bloc.category}'),
-        slivers: [
-          SliverToBoxAdapter(child: GameHeader(title: catalog.title)),
-          PinnedHeaderSliver(
-            child: ColoredBox(
-              key: const ValueKey('map-category-bar'),
-              color: AppColors.oreRow,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  children: catalog.categories
-                      .map(
-                        (category) => Padding(
-                          padding: const EdgeInsets.only(right: AppSpacing.sm),
-                          child: OutlinedButton(
-                            key: ValueKey('category-$category'),
-                            style: AppTheme.categoryButton(
-                              selected: _bloc.category == category,
-                            ),
-                            onPressed: () => _bloc.selectCategory(category),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (category == 'Favourite') ...[
-                                  const Icon(
-                                    Icons.star_border,
-                                    color: AppColors.primary,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: AppSpacing.xs),
-                                ],
-                                AppText(
-                                  category,
-                                  style: AppTextStyles.pixelBodyLarge,
-                                ),
-                              ],
+    builder: (context, catalog) => NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        SliverToBoxAdapter(
+          child: GameHeader(
+            title: catalog.title,
+            contentHeight: AppLayout.gameHeaderHeight * .6,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: catalog.categories
+                  .map(
+                    (category) => Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.sm),
+                      child: OutlinedButton(
+                        key: ValueKey('category-$category'),
+                        style: AppTheme.categoryButton(
+                          selected: _bloc.category == category,
+                        ),
+                        onPressed: () => _bloc.selectCategory(category),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (category == 'Favourite') ...[
+                              const Icon(
+                                Icons.star_border,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                            ],
+                            AppText(
+                              category,
+                              style: AppTextStyles.pixelBodyLarge,
                             ),
                           ),
                         ),
@@ -227,50 +224,55 @@ class _MapsPageState extends State<MapsPage> {
                     item,
                     isPro: MonetizationScope.maybeOf(context)?.isPro ?? false,
                   );
-                  if (item.category == 'Seeds') {
-                    return SeedMapCard(
-                      item: item,
-                      favourite: _bloc.favourites.contains(item.id),
-                      selectedVersion: _bloc.category == 'Seeds'
-                          ? _bloc.seedVersion
-                          : null,
-                      onFavourite: () => _bloc.toggleFavourite(item.id),
-                    );
-                  }
-                  return LayoutBuilder(
-                    builder: (context, constraints) => Material(
+                }
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 430;
+                    final imageWidth = (constraints.maxWidth * .32)
+                        .clamp(96.0, 170.0)
+                        .toDouble();
+                    final cardRadius = BorderRadius.circular(16);
+                    return Material(
                       color: AppColors.surface,
-                      borderRadius: AppRadii.standard,
+                      borderRadius: cardRadius,
                       child: InkWell(
                         key: ValueKey('map-${item.id}'),
-                        borderRadius: AppRadii.standard,
+                        borderRadius: cardRadius,
                         onTap: () => _open(item),
                         child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          padding: EdgeInsets.all(compact ? 8 : 12),
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: AppColors.primary,
-                              width: 2,
+                              width: 2.5,
                             ),
-                            borderRadius: AppRadii.standard,
+                            borderRadius: cardRadius,
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               SizedBox(
-                                width: AppLayout.compact(constraints.maxWidth)
-                                    ? 90
-                                    : 112,
-                                height: 118,
+                                width: imageWidth,
+                                height: imageWidth * 1.12,
                                 child: ClipRRect(
-                                  borderRadius: AppRadii.standard,
+                                  borderRadius: BorderRadius.circular(12),
                                   child: Stack(
                                     fit: StackFit.expand,
                                     children: [
-                                      Image.asset(
-                                        item.cover,
-                                        fit: BoxFit.cover,
-                                      ),
+                                      item.coverUrl == null
+                                          ? Image.asset(
+                                              item.cover,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(
+                                              item.coverUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  Image.asset(
+                                                    item.cover,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                            ),
                                       if (locked)
                                         const ColoredBox(
                                           color: AppColors.heroScrim,
@@ -287,10 +289,11 @@ class _MapsPageState extends State<MapsPage> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.md),
+                              SizedBox(width: compact ? 10 : 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Row(
                                       crossAxisAlignment:
@@ -299,12 +302,19 @@ class _MapsPageState extends State<MapsPage> {
                                         Expanded(
                                           child: AppText(
                                             item.name,
-                                            style: AppTextStyles.itemTitle,
+                                            style: AppTextStyles.itemTitle
+                                                .copyWith(
+                                                  fontSize: compact ? 16 : 21,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.2,
+                                                ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         SizedBox(
                                           width: 28,
-                                          height: 32,
+                                          height: 30,
                                           child: IconButton(
                                             key: ValueKey(
                                               'favourite-${item.id}',
@@ -317,7 +327,7 @@ class _MapsPageState extends State<MapsPage> {
                                             ),
                                             onPressed: () =>
                                                 _bloc.toggleFavourite(item.id),
-                                            iconSize: 21,
+                                            iconSize: 20,
                                             icon: Icon(
                                               _bloc.favourites.contains(item.id)
                                                   ? Icons.star
@@ -328,18 +338,14 @@ class _MapsPageState extends State<MapsPage> {
                                         ),
                                       ],
                                     ),
-                                    if (item.subtitle.isNotEmpty) ...[
-                                      const SizedBox(height: AppSpacing.sm),
-                                      AppText(
-                                        item.subtitle,
-                                        style: AppTextStyles.pixelBody,
-                                      ),
-                                    ],
-                                    const SizedBox(height: AppSpacing.md),
+                                    SizedBox(height: compact ? 7 : 10),
                                     AppText(
                                       item.description,
-                                      style: AppTextStyles.pixelBody,
-                                      maxLines: 4,
+                                      style: AppTextStyles.pixelBody.copyWith(
+                                        fontSize: compact ? 13 : 17,
+                                        height: 1.3,
+                                      ),
+                                      maxLines: compact ? 4 : 5,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
@@ -349,10 +355,10 @@ class _MapsPageState extends State<MapsPage> {
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                );
+              },
             ),
         ],
       ),

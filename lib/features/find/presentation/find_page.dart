@@ -1,5 +1,6 @@
 import '../../../common/widgets/app_text.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../common/widgets/app_button.dart';
 import '../../../common/widgets/digging_pickaxe.dart';
@@ -7,6 +8,7 @@ import '../../../common/widgets/game_header.dart';
 import '../../../common/widgets/game_text_field.dart';
 import '../../../common/widgets/ore_art.dart';
 import '../../../common/widgets/resource_view.dart';
+import '../../../core/responsive/app_layout.dart';
 import '../../digging/presentation/found_ores_page.dart';
 import '../../../core/models/search_record.dart';
 import '../../../core/monetization/app_monetization.dart';
@@ -15,6 +17,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../bloc/find_bloc.dart';
+import '../data/api_find_repository.dart';
 import '../data/find_repository.dart';
 import '../models/find_catalog.dart';
 
@@ -39,9 +42,8 @@ class FindPage extends StatefulWidget {
 }
 
 class _FindPageState extends State<FindPage> {
-  late final FindBloc _bloc = FindBloc(
-    widget.repository ?? JsonFindRepository(),
-  )..load();
+  late final FindBloc _bloc = FindBloc(widget.repository ?? ApiFindRepository())
+    ..load();
   final _form = GlobalKey<FormState>();
   final _digging = GlobalKey();
   final _x = TextEditingController();
@@ -122,11 +124,13 @@ class _FindPageState extends State<FindPage> {
           ),
         );
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: AppText('Unable to search. Please try again.'),
+          SnackBar(
+            content: AppText(
+              error is HttpException ? error.message : error.toString(),
+            ),
           ),
         );
       }
@@ -138,7 +142,10 @@ class _FindPageState extends State<FindPage> {
     controller: _bloc,
     builder: (context, catalog) => Column(
       children: [
-        GameHeader(title: catalog.title),
+        GameHeader(
+          title: catalog.title,
+          contentHeight: AppLayout.gameHeaderHeight * .6,
+        ),
         Expanded(
           child: Form(
             key: _form,
@@ -198,16 +205,17 @@ class _FindPageState extends State<FindPage> {
                   items: catalog.versions
                       .map(
                         (version) => DropdownMenuItem(
+                          key: ValueKey('game-version-${version.id}'),
                           value: version.id,
                           child: AppText(
-                            version.label,
+                            '${version.apiVersion} Java',
                             style: AppTextStyles.fieldValue,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       )
-                      .toList(),
+                      .toList(growable: false),
                   onChanged: _bloc.searching
                       ? null
                       : (value) {

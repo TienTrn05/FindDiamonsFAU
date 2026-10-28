@@ -16,6 +16,8 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		D277C03CD172E6418FC10D57 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CF4D12661B532347E1B27AB0 /* Pods_Runner.framework */; };
+		DAA5EC358772509B6B045136 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47E43B02A72ED531EA6561AC /* Pods_RunnerTests.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +89,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		011BBE961E64BA4E3300564B /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				CBB820A95BFD42D812C4F78C /* Pods-Runner.debug.xcconfig */,
+				A0BBAA28FD47649507167968 /* Pods-Runner.release.xcconfig */,
+				8C5FB06D128D7A8161E704DD /* Pods-Runner.profile.xcconfig */,
+				8FCC95406C7DBFDAAF6EF491 /* Pods-RunnerTests.debug.xcconfig */,
+				684F19B089F672B34DBD2700 /* Pods-RunnerTests.release.xcconfig */,
+				1E13F97AE11662841344B64B /* Pods-RunnerTests.profile.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (

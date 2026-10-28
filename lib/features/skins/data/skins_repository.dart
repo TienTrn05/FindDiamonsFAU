@@ -5,7 +5,7 @@ import '../../../core/data/json_asset_source.dart';
 import '../models/skin_item.dart';
 
 abstract interface class SkinsRepository {
-  Future<List<SkinItem>> load();
+  Future<List<SkinItem>> load({String query = ''});
   Set<String> get unlocked;
   Future<bool> unlock(String id);
 }
@@ -43,11 +43,22 @@ class JsonSkinsRepository implements SkinsRepository {
   }
 
   @override
-  Future<List<SkinItem>> load() async {
+  Future<List<SkinItem>> load({String query = ''}) async {
     final json = await source.read('assets/data/skins/skins.json');
     await _restore();
-    return (json['skins'] as List)
+    final skins = (json['skins'] as List)
         .map((e) => SkinItem.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) return skins;
+    return skins
+        .where(
+          (skin) =>
+              skin.name.toLowerCase().contains(normalizedQuery) ||
+              skin.palette.toLowerCase().contains(normalizedQuery) ||
+              (skin.category?.toLowerCase().contains(normalizedQuery) ??
+                  false),
+        )
         .toList(growable: false);
   }
 }

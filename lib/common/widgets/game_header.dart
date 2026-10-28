@@ -12,14 +12,16 @@ class GameHeader extends StatelessWidget {
     required this.title,
     this.onBack,
     this.trailing,
+    this.contentHeight = AppLayout.gameHeaderHeight,
   });
   final String title;
   final VoidCallback? onBack;
   final Widget? trailing;
+  final double contentHeight;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: AppLayout.gameHeaderHeight + MediaQuery.paddingOf(context).top,
+    height: contentHeight + MediaQuery.paddingOf(context).top,
     child: OreBackground(
       diamondOnly: true,
       child: Stack(
@@ -28,7 +30,7 @@ class GameHeader extends StatelessWidget {
           SafeArea(
             bottom: false,
             child: SizedBox(
-              height: AppLayout.gameHeaderHeight,
+              height: contentHeight,
               width: double.infinity,
               child: Center(
                 child: Padding(
