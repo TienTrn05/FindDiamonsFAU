@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/widgets/app_page_frame.dart';
 import '../../../common/widgets/landscape_background.dart';
@@ -29,7 +31,11 @@ class ServerInfoPage extends StatelessWidget {
   void _connectionDetails(BuildContext context) => showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const AppText('Add to Bedrock server list'),
+      title: AppText(
+        server.edition.toLowerCase() == 'java'
+            ? 'Add to Java server list'
+            : 'Add to Bedrock server list',
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,26 +63,32 @@ class ServerInfoPage extends StatelessWidget {
     ),
   );
 
-  void _website(BuildContext context) => showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const AppText('Server Website'),
-      content: SelectableText(server.website, style: AppTextStyles.body),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const AppText('Close'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(dialogContext);
-            _copy(context, server.website, 'Website link copied');
-          },
-          child: const AppText('Copy link'),
-        ),
-      ],
-    ),
-  );
+  Future<void> _website(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final uri = Uri.tryParse(server.website.trim());
+    if (uri == null ||
+        !const {'http', 'https'}.contains(uri.scheme.toLowerCase()) ||
+        uri.host.isEmpty) {
+      _showWebsiteError(messenger);
+      return;
+    }
+
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        _showWebsiteError(messenger);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Server website could not be opened: $error\n$stackTrace');
+      _showWebsiteError(messenger);
+    }
+  }
+
+  void _showWebsiteError(ScaffoldMessengerState messenger) {
+    if (!messenger.mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(content: AppText('Unable to open server website.')),
+    );
+  }
 
   void _share(BuildContext context) => showModalBottomSheet<void>(
     context: context,
@@ -213,8 +225,10 @@ class ServerInfoPage extends StatelessWidget {
                                   key: const ValueKey('server-add'),
                                   onPressed: () => _connectionDetails(context),
                                   style: _outline(AppColors.serverActionBorder),
-                                  child: const AppText(
-                                    'ADD TO BEDROCK SERVER LIST',
+                                  child: AppText(
+                                    server.edition.toLowerCase() == 'java'
+                                        ? 'ADD TO JAVA SERVER LIST'
+                                        : 'ADD TO BEDROCK SERVER LIST',
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
@@ -313,7 +327,13 @@ class ServerInfoPage extends StatelessWidget {
                         borderRadius: AppRadii.card,
                       ),
                       child: AppText(
-                        server.description,
+                        [
+                          server.description,
+                          if (server.joinNote.isNotEmpty) server.joinNote,
+                          if (server.version != null)
+                            'Version: ${server.version}',
+                          if (server.motd != null) server.motd!,
+                        ].where((line) => line.isNotEmpty).join('\n\n'),
                         style: AppTextStyles.serverInfoBody,
                       ),
                     ),
@@ -327,54 +347,25 @@ class ServerInfoPage extends StatelessWidget {
     ),
   );
 
-  Widget _banner() => AspectRatio(
-    aspectRatio: 8,
-    child: Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(server.bannerImage, fit: BoxFit.cover),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.permissionAction.withValues(alpha: .85),
-                AppColors.adAction.withValues(alpha: .6),
-              ],
+  Widget _banner() {
+    final banner = server.bannerUrl;
+    final fallback = Image.asset(server.bannerImage, fit: BoxFit.cover);
+
+    return AspectRatio(
+      aspectRatio: 8,
+      child: banner == null
+          ? fallback
+          : banner.path.toLowerCase().endsWith('.svg')
+          ? SvgPicture.network(
+              banner.toString(),
+              fit: BoxFit.cover,
+              placeholderBuilder: (_) => fallback,
+            )
+          : Image.network(
+              banner.toString(),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => fallback,
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppText(
-                  server.name.toUpperCase(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.serverInfoAction,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              const Icon(
-                Icons.view_in_ar,
-                color: AppColors.onPrimary,
-                size: 28,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                flex: 2,
-                child: AppText(
-                  server.bannerLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.serverInfoTitle,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 }

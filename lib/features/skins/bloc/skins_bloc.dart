@@ -7,6 +7,9 @@ class SkinsBloc extends ResourceController<List<SkinItem>> {
   final SkinsRepository repository;
   String? selectedId;
   bool walking = false;
+  String _query = '';
+  int _searchGeneration = 0;
+  bool _disposed = false;
 
   bool isLocked(SkinItem item, {required bool isPro}) =>
       item.locked && !isPro && !repository.unlocked.contains(item.id);
@@ -18,7 +21,28 @@ class SkinsBloc extends ResourceController<List<SkinItem>> {
   }
 
   @override
-  Future<List<SkinItem>> fetch() => repository.load();
+  Future<List<SkinItem>> fetch() => repository.load(query: _query);
+
+  Future<void> search(String query) async {
+    _query = query.trim();
+    final generation = ++_searchGeneration;
+    loading = true;
+    error = null;
+    refresh();
+    try {
+      final results = await repository.load(query: _query);
+      if (_disposed || generation != _searchGeneration) return;
+      data = results;
+      if (!results.any((item) => item.id == selectedId)) selectedId = null;
+    } catch (exception) {
+      if (!_disposed && generation == _searchGeneration) error = exception;
+    } finally {
+      if (!_disposed && generation == _searchGeneration) {
+        loading = false;
+        refresh();
+      }
+    }
+  }
 
   SkinItem get selected => data!.firstWhere(
     (item) => item.id == selectedId,
@@ -33,5 +57,11 @@ class SkinsBloc extends ResourceController<List<SkinItem>> {
   void setWalking(bool value) {
     walking = value;
     refresh();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

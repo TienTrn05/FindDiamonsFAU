@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/widgets/app_button.dart';
 import '../../../common/widgets/app_page_frame.dart';
 import '../../../common/widgets/app_text.dart';
 import '../../../common/widgets/game_header.dart';
 import '../../../core/monetization/app_monetization.dart';
+import '../../../core/responsive/app_layout.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -38,6 +40,30 @@ class _MapDetailsPageState extends State<MapDetailsPage> {
   bool _dialogOpen = false;
 
   bool get _locked => widget.bloc.isLocked(widget.item, isPro: _access.isPro);
+
+  Future<void> _downloadMap() async {
+    final link =
+        widget.item.downloadUrl ??
+        widget.item.downloadPageUrl ??
+        widget.item.sourceUrl;
+    final uri = link == null ? null : Uri.tryParse(link);
+    try {
+      if (uri == null ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        _showDownloadError();
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Map download link could not be opened: $error\n$stackTrace');
+      _showDownloadError();
+    }
+  }
+
+  void _showDownloadError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: AppText('Unable to open download page.')),
+    );
+  }
 
   void _preload() {
     if (_preloadScheduled ||
@@ -93,6 +119,7 @@ class _MapDetailsPageState extends State<MapDetailsPage> {
             children: [
               GameHeader(
                 title: item.name,
+                contentHeight: AppLayout.gameHeaderHeight * .5,
                 onBack: () => Navigator.pop(context),
                 trailing: IconButton(
                   key: const ValueKey('map-detail-favourite'),
@@ -170,18 +197,31 @@ class _MapDetailsPageState extends State<MapDetailsPage> {
                 children: [
                   const Divider(color: AppColors.helpFooter),
                   const SizedBox(height: AppSpacing.sm),
-                  AppButton(
-                    key: const ValueKey('unlock-world'),
-                    label: _locked ? 'Unlock World' : 'World Unlocked',
-                    pixel: true,
-                    leading: Icon(
-                      _locked ? Icons.lock : Icons.check_circle,
-                      color: AppColors.onPrimary,
-                    ),
-                    onPressed: _locked ? _unlock : null,
-                  ),
-                  if (!_locked) ...[
-                    const SizedBox(height: AppSpacing.md),
+                  if (_locked)
+                    AppButton(
+                      key: const ValueKey('unlock-world'),
+                      label: 'Unlock World',
+                      pixel: true,
+                      leading: const Icon(
+                        Icons.lock,
+                        color: AppColors.onPrimary,
+                      ),
+                      onPressed: _unlock,
+                    )
+                  else if (item.downloadUrl != null ||
+                      item.downloadPageUrl != null ||
+                      item.sourceUrl != null)
+                    AppButton(
+                      key: const ValueKey('download-map'),
+                      label: 'Tải map',
+                      pixel: true,
+                      leading: const Icon(
+                        Icons.open_in_new,
+                        color: AppColors.onPrimary,
+                      ),
+                      onPressed: _downloadMap,
+                    )
+                  else ...[
                     const AppText(
                       'Map download is not available yet.',
                       textAlign: TextAlign.center,
@@ -230,11 +270,22 @@ class _WorldGalleryState extends State<_WorldGallery> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: ClipRRect(
             borderRadius: AppRadii.standard,
-            child: Image.asset(
-              widget.item.images[index],
-              fit: BoxFit.cover,
-              semanticLabel: widget.item.name,
-            ),
+            child: widget.item.coverUrl != null && widget.item.gallery.isEmpty
+                ? Image.network(
+                    widget.item.coverUrl!,
+                    fit: BoxFit.cover,
+                    semanticLabel: widget.item.name,
+                    errorBuilder: (_, _, _) => Image.asset(
+                      widget.item.cover,
+                      fit: BoxFit.cover,
+                      semanticLabel: widget.item.name,
+                    ),
+                  )
+                : Image.asset(
+                    widget.item.images[index],
+                    fit: BoxFit.cover,
+                    semanticLabel: widget.item.name,
+                  ),
           ),
         ),
       ),

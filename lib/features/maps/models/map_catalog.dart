@@ -8,6 +8,15 @@ class MapItem {
     required this.cover,
     required this.locked,
     this.seed,
+    this.seedEdition = '',
+    this.seedCategory = '',
+    this.coverUrl,
+    this.sourceUrl,
+    this.downloadPageUrl,
+    this.downloadUrl,
+    this.edition = '',
+    this.creator = '',
+    this.categories = const [],
     this.gallery = const [],
     this.features = const [],
     this.versions = const [],
@@ -21,6 +30,15 @@ class MapItem {
     cover: json['cover'] as String,
     locked: json['locked'] as bool,
     seed: json['seed'] as String?,
+    seedEdition: json['seedEdition'] as String? ?? '',
+    seedCategory: json['seedCategory'] as String? ?? '',
+    coverUrl: json['coverUrl'] as String?,
+    sourceUrl: json['sourceUrl'] as String?,
+    downloadPageUrl: json['downloadPageUrl'] as String?,
+    downloadUrl: json['downloadUrl'] as String?,
+    edition: json['edition'] as String? ?? '',
+    creator: json['creator'] as String? ?? '',
+    categories: List<String>.from(json['categories'] as List? ?? const []),
     gallery: List<String>.from(json['gallery'] as List? ?? const []),
     features: List<String>.from(json['features'] as List? ?? const []),
     versions: List<String>.from(json['versions'] as List? ?? const []),
@@ -33,6 +51,15 @@ class MapItem {
   final String cover;
   final bool locked;
   final String? seed;
+  final String seedEdition;
+  final String seedCategory;
+  final String? coverUrl;
+  final String? sourceUrl;
+  final String? downloadPageUrl;
+  final String? downloadUrl;
+  final String edition;
+  final String creator;
+  final List<String> categories;
   final List<String> gallery;
   final List<String> features;
   final List<String> versions;

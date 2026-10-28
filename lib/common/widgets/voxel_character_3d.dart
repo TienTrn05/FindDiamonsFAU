@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import '../../core/localization/app_translations.dart';
@@ -11,10 +13,12 @@ class VoxelCharacter3D extends StatefulWidget {
     super.key,
     this.palette = 'steve',
     this.walking = false,
+    this.skinTextureUrl,
   });
 
   final String palette;
   final bool walking;
+  final Uri? skinTextureUrl;
 
   @override
   State<VoxelCharacter3D> createState() => _VoxelCharacter3DState();
@@ -28,10 +32,14 @@ class _VoxelCharacter3DState extends State<VoxelCharacter3D>
   );
   double _yaw = -.35;
   double _pitch = -.12;
+  ui.Image? _skinTexture;
+  ImageStream? _textureStream;
+  ImageStreamListener? _textureListener;
 
   @override
   void initState() {
     super.initState();
+    _loadTexture(widget.skinTextureUrl);
     if (widget.walking) _animation.repeat();
   }
 
@@ -45,10 +53,60 @@ class _VoxelCharacter3DState extends State<VoxelCharacter3D>
         _animation.stop();
       }
     }
+    if (widget.skinTextureUrl != oldWidget.skinTextureUrl) {
+      _loadTexture(widget.skinTextureUrl);
+    }
+  }
+
+  void _loadTexture(Uri? url) {
+    final oldStream = _textureStream;
+    final oldListener = _textureListener;
+    if (oldStream != null && oldListener != null) {
+      oldStream.removeListener(oldListener);
+    }
+    _textureStream = null;
+    _textureListener = null;
+    _skinTexture?.dispose();
+    _skinTexture = null;
+    if (url == null) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final stream = NetworkImage(
+      url.toString(),
+    ).resolve(const ImageConfiguration());
+    final listener = ImageStreamListener((info, _) {
+      final image = info.image;
+      final isMinecraftSkin =
+          image.width >= 64 &&
+          image.width % 64 == 0 &&
+          (image.width == image.height || image.width == image.height * 2);
+      final normalizedHeight = image.height * 64 ~/ image.width;
+      final usable =
+          isMinecraftSkin && (normalizedHeight == 64 || normalizedHeight == 32);
+      final copy = usable ? image.clone() : null;
+      info.dispose();
+      if (!mounted) {
+        copy?.dispose();
+        return;
+      }
+      setState(() {
+        _skinTexture?.dispose();
+        _skinTexture = copy;
+      });
+    }, onError: (Object error, StackTrace? stackTrace) {});
+    _textureStream = stream;
+    _textureListener = listener;
+    stream.addListener(listener);
   }
 
   @override
   void dispose() {
+    final stream = _textureStream;
+    final listener = _textureListener;
+    if (stream != null && listener != null) stream.removeListener(listener);
+    _skinTexture?.dispose();
     _animation.dispose();
     super.dispose();
   }
@@ -77,6 +135,7 @@ class _VoxelCharacter3DState extends State<VoxelCharacter3D>
         builder: (context, child) => CustomPaint(
           painter: _Voxel3DPainter(
             palette: widget.palette,
+            texture: _skinTexture,
             yaw: _yaw,
             pitch: _pitch,
             stride: widget.walking
@@ -113,9 +172,16 @@ class _Point3 {
 }
 
 class _Face3 {
-  _Face3(this.vertices, this.color);
+  _Face3(
+    this.vertices,
+    this.color, {
+    this.textureRect,
+    this.flipTextureX = false,
+  });
   final List<_Point3> vertices;
   final Color color;
+  final Rect? textureRect;
+  final bool flipTextureX;
   final overlays = <_Face3>[];
 
   double get depth => vertices.fold(0.0, (sum, p) => sum + p.z) / 4;
@@ -124,12 +190,14 @@ class _Face3 {
 class _Voxel3DPainter extends CustomPainter {
   const _Voxel3DPainter({
     required this.palette,
+    required this.texture,
     required this.yaw,
     required this.pitch,
     required this.stride,
   });
 
   final String palette;
+  final ui.Image? texture;
   final double yaw;
   final double pitch;
   final double stride;
@@ -137,6 +205,7 @@ class _Voxel3DPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final colors = CharacterPalette.of(palette);
+    final skinTexture = texture;
     final faces = <_Face3>[];
     _Face3? frontSurface;
 
@@ -146,6 +215,8 @@ class _Voxel3DPainter extends CustomPainter {
       double angle,
       double pivot, {
       bool overlay = false,
+      Rect? textureRect,
+      bool flipTextureX = false,
     }) {
       final points = vertices
           .map(
@@ -168,6 +239,8 @@ class _Voxel3DPainter extends CustomPainter {
       final result = _Face3(
         points,
         Color.lerp(Colors.black, color, .60 + .40 * light)!,
+        textureRect: textureRect,
+        flipTextureX: flipTextureX,
       );
       if (overlay) {
         frontSurface?.overlays.add(result);
@@ -188,6 +261,7 @@ class _Voxel3DPainter extends CustomPainter {
       double angle = 0,
       double pivot = 0,
       bool head = false,
+      List<Rect>? textureRegions,
     }) {
       final p = [
         _Point3(x, y, z),
@@ -209,7 +283,7 @@ class _Voxel3DPainter extends CustomPainter {
       ];
       for (var side = 0; side < sides.length; side++) {
         final vertices = [for (final i in sides[side]) p[i]];
-        if (head && (side == 2 || side == 3)) {
+        if (skinTexture == null && head && (side == 2 || side == 3)) {
           final midRight = _Point3(vertices[1].x, y + 4, vertices[1].z);
           final midLeft = _Point3(vertices[0].x, y + 4, vertices[0].z);
           face(
@@ -217,12 +291,14 @@ class _Voxel3DPainter extends CustomPainter {
             colors.hair,
             angle,
             pivot,
+            textureRect: textureRegions == null ? null : textureRegions[side],
           );
           face(
             [midLeft, midRight, vertices[2], vertices[3]],
             color,
             angle,
             pivot,
+            textureRect: textureRegions == null ? null : textureRegions[side],
           );
         } else {
           final result = face(
@@ -230,6 +306,8 @@ class _Voxel3DPainter extends CustomPainter {
             head && (side == 1 || side == 4) ? colors.hair : color,
             angle,
             pivot,
+            textureRect: textureRegions == null ? null : textureRegions[side],
+            flipTextureX: side == 1,
           );
           if (side == 0) frontSurface = result;
         }
@@ -251,53 +329,220 @@ class _Voxel3DPainter extends CustomPainter {
       );
     }
 
-    // Head: solid hair at the back and top, with pixel features on the face.
-    box(-4, -16, -4, 8, 8, 8, colors.skin, head: true);
-    front(-4, -16, 8, 2, 4.02, colors.hair);
-    front(-4, -14, 1, 2, 4.02, colors.hair);
-    front(3, -14, 1, 2, 4.02, colors.hair);
-    front(-3, -12, 2, 1, 4.02, CharacterPalette.eyeWhite);
-    front(1, -12, 2, 1, 4.02, CharacterPalette.eyeWhite);
-    front(-2, -12, 1, 1, 4.03, colors.eyes);
-    front(1, -12, 1, 1, 4.03, colors.eyes);
-    front(-1, -11, 2, 1, 4.02, Color.lerp(colors.skin, colors.hair, .2)!);
-    front(-2, -10, 4, 2, 4.02, colors.hair);
-    front(-1, -10, 2, 1, 4.03, colors.skin);
+    if (skinTexture == null) {
+      // Palette-based fallback for local demo skins.
+      box(-4, -16, -4, 8, 8, 8, colors.skin, head: true);
+      front(-4, -16, 8, 2, 4.02, colors.hair);
+      front(-4, -14, 1, 2, 4.02, colors.hair);
+      front(3, -14, 1, 2, 4.02, colors.hair);
+      front(-3, -12, 2, 1, 4.02, CharacterPalette.eyeWhite);
+      front(1, -12, 2, 1, 4.02, CharacterPalette.eyeWhite);
+      front(-2, -12, 1, 1, 4.03, colors.eyes);
+      front(1, -12, 1, 1, 4.03, colors.eyes);
+      front(-1, -11, 2, 1, 4.02, Color.lerp(colors.skin, colors.hair, .2)!);
+      front(-2, -10, 4, 2, 4.02, colors.hair);
+      front(-1, -10, 2, 1, 4.03, colors.skin);
 
-    box(-4, -8, -2, 8, 12, 4, colors.shirt);
-    front(-1, -8, 2, 1, 2.02, colors.skin);
-    if (palette == 'knight' || palette == 'panda') {
-      front(-4, 2, 8, 1, 2.02, CharacterPalette.gold);
-      front(
-        -2,
-        -5,
-        4,
-        3,
-        2.02,
-        palette == 'knight' ? colors.hair : colors.trousers,
+      box(-4, -8, -2, 8, 12, 4, colors.shirt);
+      front(-1, -8, 2, 1, 2.02, colors.skin);
+      if (palette == 'knight' || palette == 'panda') {
+        front(-4, 2, 8, 1, 2.02, CharacterPalette.gold);
+        front(
+          -2,
+          -5,
+          4,
+          3,
+          2.02,
+          palette == 'knight' ? colors.hair : colors.trousers,
+        );
+      }
+      if (palette == 'neon') {
+        front(-2, -7, 4, 10, 2.02, colors.hair);
+        front(-1, -4, 2, 2, 2.03, colors.shirt);
+      }
+      for (final arm in [(-8.0, stride), (4.0, -stride)]) {
+        box(arm.$1, -8, -2, 4, 4, 4, colors.shirt, angle: arm.$2, pivot: -8);
+        box(arm.$1, -4, -2, 4, 8, 4, colors.skin, angle: arm.$2, pivot: -8);
+      }
+      for (final leg in [(-4.0, -stride), (0.0, stride)]) {
+        box(leg.$1, 4, -2, 4, 10, 4, colors.trousers, angle: leg.$2, pivot: 4);
+        box(
+          leg.$1,
+          14,
+          -2,
+          4,
+          2,
+          4,
+          CharacterPalette.shoes,
+          angle: leg.$2,
+          pivot: 4,
+        );
+      }
+    } else {
+      final uvScale = skinTexture.width / 64;
+      Rect uv(int x, int y, int width, int height) => Rect.fromLTWH(
+        x * uvScale,
+        y * uvScale,
+        width * uvScale,
+        height * uvScale,
       );
-    }
-    if (palette == 'neon') {
-      front(-2, -7, 4, 10, 2.02, colors.hair);
-      front(-1, -4, 2, 2, 2.03, colors.shirt);
-    }
-    for (final arm in [(-8.0, stride), (4.0, -stride)]) {
-      box(arm.$1, -8, -2, 4, 4, 4, colors.shirt, angle: arm.$2, pivot: -8);
-      box(arm.$1, -4, -2, 4, 8, 4, colors.skin, angle: arm.$2, pivot: -8);
-    }
-    for (final leg in [(-4.0, -stride), (0.0, stride)]) {
-      box(leg.$1, 4, -2, 4, 10, 4, colors.trousers, angle: leg.$2, pivot: 4);
+      List<Rect> faces({
+        required Rect front,
+        required Rect back,
+        required Rect right,
+        required Rect left,
+        required Rect top,
+        required Rect bottom,
+      }) => [front, back, right, left, top, bottom];
+
+      final headUv = faces(
+        front: uv(8, 8, 8, 8),
+        back: uv(24, 8, 8, 8),
+        right: uv(0, 8, 8, 8),
+        left: uv(16, 8, 8, 8),
+        top: uv(8, 0, 8, 8),
+        bottom: uv(16, 0, 8, 8),
+      );
+      final torsoUv = faces(
+        front: uv(20, 20, 8, 12),
+        back: uv(32, 20, 8, 12),
+        right: uv(16, 20, 4, 12),
+        left: uv(28, 20, 4, 12),
+        top: uv(20, 16, 8, 4),
+        bottom: uv(28, 16, 8, 4),
+      );
+      List<Rect> limbUv({
+        required int startX,
+        required int startY,
+        required int width,
+      }) => faces(
+        front: uv(startX + 4, startY + 4, width, 12),
+        back: uv(startX + 12, startY + 4, width, 12),
+        right: uv(startX, startY + 4, 4, 12),
+        left: uv(startX + 8, startY + 4, 4, 12),
+        top: uv(startX + 4, startY, width, 4),
+        bottom: uv(startX + 8, startY, width, 4),
+      );
+
+      box(-4, -16, -4, 8, 8, 8, Colors.white, textureRegions: headUv);
       box(
-        leg.$1,
-        14,
-        -2,
-        4,
-        2,
-        4,
-        CharacterPalette.shoes,
-        angle: leg.$2,
-        pivot: 4,
+        -4.25,
+        -16.25,
+        -4.25,
+        8.5,
+        8.5,
+        8.5,
+        Colors.white,
+        textureRegions: faces(
+          front: uv(40, 8, 8, 8),
+          back: uv(56, 8, 8, 8),
+          right: uv(32, 8, 8, 8),
+          left: uv(48, 8, 8, 8),
+          top: uv(40, 0, 8, 8),
+          bottom: uv(48, 0, 8, 8),
+        ),
       );
+      box(-4, -8, -2, 8, 12, 4, Colors.white, textureRegions: torsoUv);
+
+      final isModern = skinTexture.height == skinTexture.width;
+      if (isModern) {
+        box(
+          -4.15,
+          -8.15,
+          -2.15,
+          8.3,
+          12.3,
+          4.3,
+          Colors.white,
+          textureRegions: faces(
+            front: uv(20, 36, 8, 12),
+            back: uv(32, 36, 8, 12),
+            right: uv(16, 36, 4, 12),
+            left: uv(28, 36, 4, 12),
+            top: uv(20, 32, 8, 4),
+            bottom: uv(28, 32, 8, 4),
+          ),
+        );
+      }
+
+      for (final arm in [(-8.0, stride), (4.0, -stride)]) {
+        final isRightArm = arm.$1 < 0;
+        final armUv = limbUv(
+          startX: isRightArm || !isModern ? 40 : 32,
+          startY: isRightArm || !isModern ? 16 : 48,
+          width: 4,
+        );
+        box(
+          arm.$1,
+          -8,
+          -2,
+          4,
+          12,
+          4,
+          Colors.white,
+          angle: arm.$2,
+          pivot: -8,
+          textureRegions: armUv,
+        );
+        if (isModern) {
+          final sleeveStartX = isRightArm ? 40 : 48;
+          final sleeveStartY = isRightArm ? 32 : 48;
+          box(
+            arm.$1 - .15,
+            -8.15,
+            -2.15,
+            4.3,
+            12.3,
+            4.3,
+            Colors.white,
+            angle: arm.$2,
+            pivot: -8,
+            textureRegions: limbUv(
+              startX: sleeveStartX,
+              startY: sleeveStartY,
+              width: 4,
+            ),
+          );
+        }
+      }
+
+      for (final leg in [(-4.0, -stride), (0.0, stride)]) {
+        final isRightLeg = leg.$1 < 0;
+        box(
+          leg.$1,
+          4,
+          -2,
+          4,
+          12,
+          4,
+          Colors.white,
+          angle: leg.$2,
+          pivot: 4,
+          textureRegions: limbUv(
+            startX: isRightLeg || !isModern ? 0 : 16,
+            startY: isRightLeg || !isModern ? 16 : 48,
+            width: 4,
+          ),
+        );
+        if (isModern) {
+          box(
+            leg.$1 - .15,
+            3.85,
+            -2.15,
+            4.3,
+            12.3,
+            4.3,
+            Colors.white,
+            angle: leg.$2,
+            pivot: 4,
+            textureRegions: limbUv(
+              startX: 0,
+              startY: isRightLeg ? 32 : 48,
+              width: 4,
+            ),
+          );
+        }
+      }
     }
 
     // Orthographic projection preserves the block proportions at every angle.
@@ -323,7 +568,64 @@ class _Voxel3DPainter extends CustomPainter {
           path.lineTo(point.dx, point.dy);
         }
       }
-      canvas.drawPath(path..close(), Paint()..color = face.color);
+      path.close();
+      final textureRect = face.textureRect;
+      if (skinTexture != null && textureRect != null) {
+        final first =
+            center +
+            Offset(face.vertices[0].x * scale, face.vertices[0].y * scale);
+        final second =
+            center +
+            Offset(face.vertices[1].x * scale, face.vertices[1].y * scale);
+        final fourth =
+            center +
+            Offset(face.vertices[3].x * scale, face.vertices[3].y * scale);
+        final sourceLeft = face.flipTextureX
+            ? textureRect.right
+            : textureRect.left;
+        final sourceRight = face.flipTextureX
+            ? textureRect.left
+            : textureRect.right;
+        final sx = (second.dx - first.dx) / (sourceRight - sourceLeft);
+        final sy = (second.dy - first.dy) / (sourceRight - sourceLeft);
+        final tx = first.dx - sx * sourceLeft;
+        final ty = first.dy - sy * sourceLeft;
+        final vx = (fourth.dx - first.dx) / textureRect.height;
+        final vy = (fourth.dy - first.dy) / textureRect.height;
+        final translateX = tx - vx * textureRect.top;
+        final translateY = ty - vy * textureRect.top;
+        canvas.save();
+        canvas.clipPath(path);
+        canvas.transform(
+          Float64List.fromList([
+            sx,
+            sy,
+            0,
+            0,
+            vx,
+            vy,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            translateX,
+            translateY,
+            0,
+            1,
+          ]),
+        );
+        canvas.drawImageRect(
+          skinTexture,
+          textureRect,
+          textureRect,
+          Paint()..filterQuality = FilterQuality.none,
+        );
+        canvas.restore();
+      } else {
+        canvas.drawPath(path, Paint()..color = face.color);
+      }
       for (final overlay in face.overlays) {
         drawFace(overlay);
       }
@@ -337,6 +639,7 @@ class _Voxel3DPainter extends CustomPainter {
   @override
   bool shouldRepaint(_Voxel3DPainter oldDelegate) =>
       palette != oldDelegate.palette ||
+      texture != oldDelegate.texture ||
       yaw != oldDelegate.yaw ||
       pitch != oldDelegate.pitch ||
       stride != oldDelegate.stride;

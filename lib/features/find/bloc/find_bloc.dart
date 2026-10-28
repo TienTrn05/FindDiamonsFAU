@@ -15,27 +15,84 @@ class FindBloc extends ResourceController<FindCatalog> {
   Timer? _minimumTimer;
   Completer<void>? _minimumWait;
   int oreIndex = 0;
+  String? _selectedOreId;
   String? versionId;
   bool searching = false;
 
   @override
-  Future<FindCatalog> fetch() => repository.load();
+  Future<FindCatalog> fetch() async {
+    final catalog = await repository.load();
+    final javaVersions = catalog.versions
+        .where((version) => version.edition == 'java')
+        .toList(growable: false);
+    if (javaVersions.isEmpty) {
+      throw const FormatException('No supported Java server versions found.');
+    }
+    return FindCatalog(
+      title: catalog.title,
+      help: catalog.help,
+      versions: javaVersions,
+      ores: catalog.ores,
+      positions: catalog.positions,
+    );
+  }
 
-  OreOption get ore => data!.ores[oreIndex];
+  List<OreOption> get availableOres {
+    if (data == null) return const [];
+    final selectedVersion = version.apiVersion;
+    if (selectedVersion.isEmpty) return data!.ores;
+    return data!.ores
+        .where((ore) => _versionAtLeast(selectedVersion, ore.availableFrom))
+        .toList(growable: false);
+  }
+
+  OreOption get ore {
+    final ores = availableOres;
+    if (ores.isEmpty) {
+      throw StateError('No ores are available for this version.');
+    }
+    final selectedIndex = ores.indexWhere((ore) => ore.id == _selectedOreId);
+    final index = selectedIndex >= 0
+        ? selectedIndex
+        : oreIndex.clamp(0, ores.length - 1).toInt();
+    return ores[index];
+  }
+
   GameVersion get version => data!.versions.firstWhere(
     (v) => v.id == versionId,
     orElse: () => data!.versions.first,
   );
 
   void changeOre(int delta) {
-    if (data == null || searching) return;
-    oreIndex = (oreIndex + delta) % data!.ores.length;
+    final ores = availableOres;
+    if (data == null || searching || ores.isEmpty) return;
+    final current = ores.indexWhere((ore) => ore.id == _selectedOreId);
+    final currentIndex = current >= 0 ? current : oreIndex;
+    oreIndex = (currentIndex + delta) % ores.length;
+    if (oreIndex < 0) oreIndex += ores.length;
+    _selectedOreId = ores[oreIndex].id;
     refresh();
   }
 
   void selectVersion(String value) {
     versionId = value;
+    final ores = availableOres;
+    if (ores.isNotEmpty && !ores.any((ore) => ore.id == _selectedOreId)) {
+      oreIndex = 0;
+      _selectedOreId = ores.first.id;
+    }
     refresh();
+  }
+
+  bool _versionAtLeast(String version, String minimum) {
+    final current = version.split('.').map(int.tryParse).toList();
+    final required = minimum.split('.').map(int.tryParse).toList();
+    for (var index = 0; index < 2; index++) {
+      final currentPart = index < current.length ? current[index] ?? 0 : 0;
+      final requiredPart = index < required.length ? required[index] ?? 0 : 0;
+      if (currentPart != requiredPart) return currentPart > requiredPart;
+    }
+    return true;
   }
 
   Future<SearchRecord?> search({

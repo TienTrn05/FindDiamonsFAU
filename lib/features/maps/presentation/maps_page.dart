@@ -10,6 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../bloc/maps_bloc.dart';
+import '../data/api_maps_repository.dart';
 import '../data/maps_repository.dart';
 import '../models/map_catalog.dart';
 import 'map_details_page.dart';
@@ -24,9 +25,8 @@ class MapsPage extends StatefulWidget {
 }
 
 class _MapsPageState extends State<MapsPage> {
-  late final MapsBloc _bloc = MapsBloc(
-    widget.repository ?? JsonMapsRepository(),
-  )..load();
+  late final MapsBloc _bloc = MapsBloc(widget.repository ?? ApiMapsRepository())
+    ..load();
   @override
   void dispose() {
     _bloc.dispose();
@@ -121,7 +121,12 @@ class _MapsPageState extends State<MapsPage> {
     controller: _bloc,
     builder: (context, catalog) => NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        SliverToBoxAdapter(child: GameHeader(title: catalog.title)),
+        SliverToBoxAdapter(
+          child: GameHeader(
+            title: catalog.title,
+            contentHeight: AppLayout.gameHeaderHeight * .6,
+          ),
+        ),
         SliverToBoxAdapter(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -225,113 +230,137 @@ class _MapsPageState extends State<MapsPage> {
                   );
                 }
                 return LayoutBuilder(
-                  builder: (context, constraints) => Material(
-                    color: AppColors.surface,
-                    borderRadius: AppRadii.standard,
-                    child: InkWell(
-                      key: ValueKey('map-${item.id}'),
-                      borderRadius: AppRadii.standard,
-                      onTap: () => _open(item),
-                      child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.sm),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 2,
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 430;
+                    final imageWidth = (constraints.maxWidth * .32)
+                        .clamp(96.0, 170.0)
+                        .toDouble();
+                    final cardRadius = BorderRadius.circular(16);
+                    return Material(
+                      color: AppColors.surface,
+                      borderRadius: cardRadius,
+                      child: InkWell(
+                        key: ValueKey('map-${item.id}'),
+                        borderRadius: cardRadius,
+                        onTap: () => _open(item),
+                        child: Container(
+                          padding: EdgeInsets.all(compact ? 8 : 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: AppColors.primary,
+                              width: 2.5,
+                            ),
+                            borderRadius: cardRadius,
                           ),
-                          borderRadius: AppRadii.standard,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: AppLayout.compact(constraints.maxWidth)
-                                  ? 90
-                                  : 112,
-                              height: 118,
-                              child: ClipRRect(
-                                borderRadius: AppRadii.standard,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.asset(item.cover, fit: BoxFit.cover),
-                                    if (locked)
-                                      const ColoredBox(
-                                        color: AppColors.heroScrim,
-                                      ),
-                                    if (locked)
-                                      const Center(
-                                        child: Icon(
-                                          Icons.lock,
-                                          color: AppColors.lock,
-                                          size: 28,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: imageWidth,
+                                height: imageWidth * 1.12,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      item.coverUrl == null
+                                          ? Image.asset(
+                                              item.cover,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(
+                                              item.coverUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  Image.asset(
+                                                    item.cover,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                            ),
+                                      if (locked)
+                                        const ColoredBox(
+                                          color: AppColors.heroScrim,
                                         ),
+                                      if (locked)
+                                        const Center(
+                                          child: Icon(
+                                            Icons.lock,
+                                            color: AppColors.lock,
+                                            size: 28,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: compact ? 10 : 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: AppText(
+                                            item.name,
+                                            style: AppTextStyles.itemTitle
+                                                .copyWith(
+                                                  fontSize: compact ? 16 : 21,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.2,
+                                                ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 28,
+                                          height: 30,
+                                          child: IconButton(
+                                            key: ValueKey(
+                                              'favourite-${item.id}',
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            tooltip: context.tr(
+                                              _bloc.favourites.contains(item.id)
+                                                  ? 'Remove favourite'
+                                                  : 'Add favourite',
+                                            ),
+                                            onPressed: () =>
+                                                _bloc.toggleFavourite(item.id),
+                                            iconSize: 20,
+                                            icon: Icon(
+                                              _bloc.favourites.contains(item.id)
+                                                  ? Icons.star
+                                                  : Icons.star_border,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: compact ? 7 : 10),
+                                    AppText(
+                                      item.description,
+                                      style: AppTextStyles.pixelBody.copyWith(
+                                        fontSize: compact ? 13 : 17,
+                                        height: 1.3,
                                       ),
+                                      maxLines: compact ? 4 : 5,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: AppText(
-                                          item.name,
-                                          style: AppTextStyles.itemTitle,
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: 28,
-                                        height: 32,
-                                        child: IconButton(
-                                          key: ValueKey('favourite-${item.id}'),
-                                          padding: EdgeInsets.zero,
-                                          tooltip: context.tr(
-                                            _bloc.favourites.contains(item.id)
-                                                ? 'Remove favourite'
-                                                : 'Add favourite',
-                                          ),
-                                          onPressed: () =>
-                                              _bloc.toggleFavourite(item.id),
-                                          iconSize: 21,
-                                          icon: Icon(
-                                            _bloc.favourites.contains(item.id)
-                                                ? Icons.star
-                                                : Icons.star_border,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (item.subtitle.isNotEmpty) ...[
-                                    const SizedBox(height: AppSpacing.sm),
-                                    AppText(
-                                      item.subtitle,
-                                      style: AppTextStyles.pixelBody,
-                                    ),
-                                  ],
-                                  const SizedBox(height: AppSpacing.md),
-                                  AppText(
-                                    item.description,
-                                    style: AppTextStyles.pixelBody,
-                                    maxLines: 4,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),

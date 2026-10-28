@@ -35,6 +35,11 @@ class SeedMapCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final version =
         selectedVersion ?? item.versions.firstOrNull ?? item.subtitle;
+    final seedDetails = [
+      if (item.seedEdition.isNotEmpty) item.seedEdition.toUpperCase(),
+      if (version.isNotEmpty) version,
+      if (item.seedCategory.isNotEmpty) item.seedCategory,
+    ].join(' · ');
     return Material(
       color: AppColors.oreRow,
       shape: RoundedRectangleBorder(
@@ -48,7 +53,14 @@ class SeedMapCard extends StatelessWidget {
         children: [
           AspectRatio(
             aspectRatio: 2,
-            child: Image.asset(item.cover, fit: BoxFit.cover),
+            child: item.coverUrl == null
+                ? Image.asset(item.cover, fit: BoxFit.cover)
+                : Image.network(
+                    item.coverUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        Image.asset(item.cover, fit: BoxFit.cover),
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -102,9 +114,9 @@ class SeedMapCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                if (version.isNotEmpty) ...[
+                if (seedDetails.isNotEmpty) ...[
                   AppText(
-                    version,
+                    seedDetails,
                     style: AppTextStyles.itemTitle.copyWith(
                       color: AppColors.textMuted,
                     ),
