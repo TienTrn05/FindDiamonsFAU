@@ -24,7 +24,7 @@ abstract final class AppTextStyles {
   );
   static const fieldValue = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 19,
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     color: AppColors.text,
     fontFeatures: [FontFeature.tabularFigures()],

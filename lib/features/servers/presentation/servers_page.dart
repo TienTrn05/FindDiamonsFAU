@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../common/widgets/app_text.dart';
 import '../../../common/widgets/landscape_background.dart';
 import '../../../common/widgets/resource_view.dart';
+import '../../../core/monetization/app_monetization.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../bloc/servers_bloc.dart';
@@ -11,7 +11,6 @@ import '../data/api_servers_repository.dart';
 import '../data/servers_repository.dart';
 import '../models/server_catalog.dart';
 import 'server_info_page.dart';
-import 'server_banner.dart';
 
 class ServersPage extends StatefulWidget {
   const ServersPage({super.key, this.repository});
@@ -151,17 +150,6 @@ class _ServerCard extends StatelessWidget {
       fit: BoxFit.cover,
       width: double.infinity,
     );
-    if (url.path.toLowerCase().endsWith('.svg')) {
-      return SizedBox(
-        height: compact ? 52 : 76,
-        width: double.infinity,
-        child: SvgPicture.network(
-          url.toString(),
-          fit: BoxFit.cover,
-          placeholderBuilder: (_) => fallback,
-        ),
-      );
-    }
     return Image.network(
       url.toString(),
       height: compact ? 52 : 76,

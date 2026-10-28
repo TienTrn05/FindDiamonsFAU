@@ -113,7 +113,6 @@ class ApiFindRepository extends JsonFindRepository {
         'edition': query.version.edition,
         'version': version,
         'mode': 'exact',
-        'eulaAccepted': false,
         'x': query.x,
         'z': query.z,
         'ore': query.ore.id,

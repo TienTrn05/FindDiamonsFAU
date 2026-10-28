@@ -19,6 +19,18 @@ class ServerItem {
     this.port = 19132,
     String? javaAddress,
     this.javaPort = 25565,
+    this.edition = 'bedrock',
+    this.bedrockAddress,
+    this.isOnline,
+    this.playersOnline,
+    this.playersMax,
+    this.version,
+    this.motd,
+    this.icon,
+    this.joinNote = '',
+    this.infoSource = '',
+    this.bannerStyle = 'full',
+    this.bannerUrl,
   }) : javaAddress = javaAddress ?? address;
   factory ServerItem.fromJson(Map<String, dynamic> json) => ServerItem(
     id: json['id'] as String,
@@ -112,7 +124,6 @@ class ServerItem {
   final String status;
   final String edition;
   final String? bedrockAddress;
-  final String? javaAddress;
   final bool? isOnline;
   final int? playersOnline;
   final int? playersMax;

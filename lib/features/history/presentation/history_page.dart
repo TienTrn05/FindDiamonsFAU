@@ -192,7 +192,7 @@ class _HistoryCard extends StatelessWidget {
           'Version: ${record.version}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.historyCard,
+          style: AppTextStyles.historyCard.copyWith(fontSize: 14),
         ),
       ),
 
