@@ -160,73 +160,69 @@ class _MapsPageState extends State<MapsPage> {
                               category,
                               style: AppTextStyles.pixelBodyLarge,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+                      )
+                      .toList(),
+                ),
+              ),
             ),
           ),
-        ),
-        if (_bloc.category == 'Seeds')
-          SliverToBoxAdapter(child: _seedFilters()),
-      ],
-      body: _bloc.visible.isEmpty
-          ? Center(
-              key: const ValueKey('empty-map-category'),
-              child: Padding(
-                padding: AppInsets.screen,
-                child: AppText(
-                  'there is no item in "${context.tr(_bloc.category)}"',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.pixelBodyLarge,
+          if (_bloc.category == 'Seeds')
+            SliverToBoxAdapter(child: _seedFilters()),
+          if (_bloc.visible.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                key: const ValueKey('empty-map-category'),
+                child: Padding(
+                  padding: AppInsets.screen,
+                  child: AppText(
+                    'there is no item in "${context.tr(_bloc.category)}"',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.pixelBodyLarge,
+                  ),
                 ),
               ),
             )
-          : ListView.separated(
-              key: PageStorageKey('maps-${_bloc.category}'),
+          else
+            SliverPadding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.sm,
                 10,
                 AppSpacing.sm,
                 AppSpacing.md,
               ),
-              itemCount:
-                  _bloc.visible.length +
-                  (MonetizationScope.maybeOf(context)?.isPro == false &&
-                          MonetizationScope.maybeOf(
-                                context,
-                              )?.adsRuntime.available ==
-                              true
-                      ? 1
-                      : 0),
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (_, index) {
-                final hasAd =
-                    MonetizationScope.maybeOf(context)?.isPro == false &&
-                    MonetizationScope.maybeOf(context)?.adsRuntime.available ==
-                        true;
-                final adIndex = _bloc.visible.length < 2
-                    ? _bloc.visible.length
-                    : 2;
-                if (hasAd && index == adIndex) {
-                  return const SpecialOfferAd();
-                }
-                final item =
-                    _bloc.visible[hasAd && index > adIndex ? index - 1 : index];
-                final locked = _bloc.isLocked(
-                  item,
-                  isPro: MonetizationScope.maybeOf(context)?.isPro ?? false,
-                );
-                if (item.category == 'Seeds') {
-                  return SeedMapCard(
-                    item: item,
-                    favourite: _bloc.favourites.contains(item.id),
-                    selectedVersion: _bloc.category == 'Seeds'
-                        ? _bloc.seedVersion
-                        : null,
-                    onFavourite: () => _bloc.toggleFavourite(item.id),
+              sliver: SliverList.separated(
+                itemCount:
+                    _bloc.visible.length +
+                    (MonetizationScope.maybeOf(context)?.isPro == false &&
+                            MonetizationScope.maybeOf(
+                                  context,
+                                )?.adsRuntime.available ==
+                                true
+                        ? 1
+                        : 0),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.sm),
+                itemBuilder: (_, index) {
+                  final hasAd =
+                      MonetizationScope.maybeOf(context)?.isPro == false &&
+                      MonetizationScope.maybeOf(
+                            context,
+                          )?.adsRuntime.available ==
+                          true;
+                  final adIndex = _bloc.visible.length < 2
+                      ? _bloc.visible.length
+                      : 2;
+                  if (hasAd && index == adIndex) {
+                    return const SpecialOfferAd();
+                  }
+                  final item = _bloc
+                      .visible[hasAd && index > adIndex ? index - 1 : index];
+                  final locked = _bloc.isLocked(
+                    item,
+                    isPro: MonetizationScope.maybeOf(context)?.isPro ?? false,
                   );
                 }
                 return LayoutBuilder(
@@ -364,6 +360,8 @@ class _MapsPageState extends State<MapsPage> {
                 );
               },
             ),
+        ],
+      ),
     ),
   );
 }

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 import 'package:roblox/app/app.dart';
 import 'package:roblox/app/app_repositories.dart';
 import 'package:roblox/app/navigation/app_shell.dart';
@@ -41,9 +42,11 @@ import 'package:roblox/features/maps/data/maps_repository.dart';
 import 'package:roblox/features/onboarding/data/onboarding_preferences.dart';
 import 'package:roblox/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:roblox/features/servers/data/servers_repository.dart';
+import 'package:roblox/features/servers/presentation/server_banner.dart';
 import 'package:roblox/features/skins/data/skins_repository.dart';
 import 'support/memory_history_store.dart';
 import 'support/fake_skin_share.dart';
+import 'support/fake_url_launcher.dart';
 
 const _startupDuration = Duration(seconds: 3);
 const _captureKey = ValueKey('route-preview');
@@ -224,13 +227,12 @@ Future<void> _shareSkinImage(WidgetTester tester) async {
 }
 
 Future<void> _mapCategory(WidgetTester tester, String category) async {
-  final page = tester.state<NestedScrollViewState>(
-    find.byType(NestedScrollView),
-  );
-  page.outerController.jumpTo(0);
-  await tester.pumpAndSettle();
   final button = find.byKey(ValueKey('category-$category'));
-  await tester.ensureVisible(button);
+  final element = tester.element(button);
+  await Scrollable.of(
+    element,
+    axis: Axis.horizontal,
+  ).position.ensureVisible(element.findRenderObject()!);
   await tester.pumpAndSettle();
   await tester.tap(button);
   await tester.pumpAndSettle();
@@ -788,7 +790,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('server-complex')));
       await tester.pumpAndSettle();
       expect(find.text('Infos du serveur'), findsOneWidget);
-      expect(find.text('demo-complex.example'), findsOneWidget);
+      expect(find.text('hub.mc-complex.com'), findsOneWidget);
 
       // Start the actual app with a fresh controller and the saved preference.
       await tester.pumpWidget(const SizedBox.shrink());
@@ -1256,10 +1258,14 @@ void main() {
     await _capture(tester, '24-seeds-cards');
     expect(find.text('Emerald Valley'), findsOneWidget);
     expect(find.text('The Wings'), findsNothing);
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const ValueKey('favourite-valley'))),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('favourite-valley')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('category-Favourite')));
-    await tester.pumpAndSettle();
+    await _mapCategory(tester, 'Favourite');
     expect(find.text('Emerald Valley'), findsOneWidget);
     expect(find.text('Cliffside Village'), findsNothing);
     await tester.tap(find.text('Emerald Valley'));
@@ -1418,7 +1424,11 @@ void main() {
       200,
       scrollable: find.descendant(
         of: find.byKey(const PageStorageKey('maps-Seeds')),
-        matching: find.byType(Scrollable),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
       ),
     );
     expect(find.text('Cliffside Village'), findsOneWidget);
@@ -1461,6 +1471,29 @@ void main() {
       expect(card.top, greaterThanOrEqualTo(0));
       expect(card.bottom, lessThanOrEqualTo(navigationTop));
       await _capture(tester, '25-seeds-full-card-scrolled');
+      final page = find.byKey(const PageStorageKey('maps-Seeds'));
+      final bar = find.byKey(const ValueKey('map-category-bar'));
+      expect(
+        find.descendant(
+          of: page,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        ),
+        findsOneWidget,
+      );
+      final pinnedTop = tester.getTopLeft(bar).dy;
+      expect(pinnedTop, closeTo(tester.getTopLeft(page).dy, 0.1));
+      await tester.drag(page, const Offset(0, -250));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(bar).dy, closeTo(pinnedTop, 0.1));
+      final favourite = find.byKey(const ValueKey('category-Favourite'));
+      expect(favourite.hitTestable(), findsOneWidget);
+      await tester.tap(favourite);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('empty-map-category')), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -2029,65 +2062,188 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('server info template opens and its local actions work', (
-    tester,
-  ) async {
-    await _mount(tester);
-    await _tab(tester, AppDestination.servers);
-    await tester.tap(find.byKey(const ValueKey('server-complex')));
-    await tester.pumpAndSettle();
-    expect(find.text('Server Info'), findsOneWidget);
-    expect(find.text('demo-complex.example'), findsOneWidget);
-    expect(find.text('ADD TO BEDROCK SERVER LIST'), findsOneWidget);
-    expect(find.text('Visit Server Website'), findsOneWidget);
-    await _capture(
-      tester,
-      '13-server-info',
-      boundary: find.byKey(const ValueKey('server-info-preview')),
-    );
+  testWidgets(
+    'server info opens, copies details and uses the native share sheet',
+    (tester) async {
+      final launcher = FakeUrlLauncher();
+      final previousLauncher = UrlLauncherPlatform.instance;
+      UrlLauncherPlatform.instance = launcher;
+      addTearDown(() => UrlLauncherPlatform.instance = previousLauncher);
+      await _mount(tester);
+      await _tab(tester, AppDestination.servers);
+      final cardBanner = find.descendant(
+        of: find.byKey(const ValueKey('server-complex')),
+        matching: find.byType(ServerBanner),
+      );
+      expect(cardBanner, findsOneWidget);
+      final bannerImage = tester
+          .widget<ServerBanner>(cardBanner)
+          .server
+          .bannerImage;
+      expect(bannerImage, 'assets/images/servers/complex.gif');
+      await tester.tap(find.byKey(const ValueKey('server-complex')));
+      await tester.pumpAndSettle();
+      expect(find.text('Server Info'), findsOneWidget);
+      expect(
+        tester
+            .widget<ServerBanner>(find.byType(ServerBanner))
+            .server
+            .bannerImage,
+        bannerImage,
+      );
+      expect(find.text('hub.mc-complex.com'), findsOneWidget);
+      expect(find.text('ADD TO BEDROCK SERVER LIST'), findsOneWidget);
+      expect(find.text('Visit Server Website'), findsOneWidget);
+      await _capture(
+        tester,
+        '13-server-info',
+        boundary: find.byKey(const ValueKey('server-info-preview')),
+      );
 
-    String? copied;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-          if (call.method == 'Clipboard.setData') {
-            copied = (call.arguments as Map)['text'] as String;
-          }
-          return null;
-        });
-    addTearDown(
-      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, null),
-    );
+      String? copied;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied = (call.arguments as Map)['text'] as String;
+            }
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
 
-    await tester.tap(find.byKey(const ValueKey('server-copy-address')));
-    await tester.pumpAndSettle();
-    expect(copied, 'demo-complex.example');
-    expect(find.text('Server address copied'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('server-add')));
-    await tester.pumpAndSettle();
-    expect(find.text('Port: 19132'), findsOneWidget);
-    await tester.tap(find.text('Close'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('server-copy-address')));
+      await tester.pumpAndSettle();
+      expect(copied, 'hub.mc-complex.com');
+      expect(find.text('COPIED!'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(find.text('hub.mc-complex.com'), findsOneWidget);
+      expect(find.text('COPIED!'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('server-add')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('server-connection-dialog')),
+        findsOneWidget,
+      );
+      expect(find.text('1. Open the Minecraft app'), findsOneWidget);
+      expect(
+        tester
+            .renderObject<RenderParagraph>(
+              find.text('1. Open the Minecraft app'),
+            )
+            .text
+            .style!
+            .color,
+        AppColors.text,
+      );
+      expect(find.text('Server Name:'), findsOneWidget);
+      expect(find.text('19132'), findsOneWidget);
+      copied = null;
+      await tester.tap(
+        find.byKey(const ValueKey('server-dialog-copy-address')),
+      );
+      await tester.pumpAndSettle();
+      expect(copied, 'hub.mc-complex.com');
+      expect(
+        find.byKey(const ValueKey('server-connection-dialog')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('close-server-connection')));
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byKey(const ValueKey('server-website')));
-    await tester.tap(find.byKey(const ValueKey('server-website')));
-    await tester.pumpAndSettle();
-    expect(find.text('https://example.com/servers/complex'), findsOneWidget);
-    await tester.tap(find.text('Copy link'));
-    await tester.pumpAndSettle();
-    expect(copied, 'https://example.com/servers/complex');
+      await tester.ensureVisible(find.byKey(const ValueKey('server-website')));
+      await tester.tap(find.byKey(const ValueKey('server-website')));
+      await tester.pumpAndSettle();
+      expect(launcher.requests.single.$1, 'https://www.mc-complex.com/');
+      expect(
+        launcher.requests.single.$2.mode,
+        PreferredLaunchMode.externalApplication,
+      );
+      expect(find.byType(AlertDialog), findsNothing);
+      launcher.succeeds = false;
+      await tester.tap(find.byKey(const ValueKey('server-website')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Unable to open this website. Please try again.'),
+        findsOneWidget,
+      );
 
-    await tester.ensureVisible(find.byKey(const ValueKey('server-share')));
-    await tester.tap(find.byKey(const ValueKey('server-share')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy server address'));
-    await tester.pumpAndSettle();
-    expect(copied, 'demo-complex.example');
-    await tester.tap(find.byKey(const ValueKey('server-info-back')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('server-complex')), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.ensureVisible(find.byKey(const ValueKey('server-share')));
+      final shareOrigin = tester.getRect(
+        find.byKey(const ValueKey('server-share')),
+      );
+      await tester.tap(find.byKey(const ValueKey('server-share')));
+      await tester.pumpAndSettle();
+      expect(_skinShares.requests, hasLength(1));
+      final request = _skinShares.requests.single;
+      expect(request.subject, 'Complex Gaming');
+      expect(
+        request.text,
+        'Complex Gaming\nJava: hub.mc-complex.com:25565\nBedrock: hub.mc-complex.com:19132\nhttps://www.mc-complex.com/',
+      );
+      expect(request.sharePositionOrigin, shareOrigin);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.text('Copy server address'), findsNothing);
+      ScaffoldMessenger.of(
+        tester.element(find.byKey(const ValueKey('server-share'))),
+      ).clearSnackBars();
+      await tester.pumpAndSettle();
+      _skinShares.fail = true;
+      await tester.tap(find.byKey(const ValueKey('server-share')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Unable to share this server. Please try again.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('server-info-back')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('server-complex')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'server connection instructions fit small screens in all languages',
+    (tester) async {
+      final languages = AppLocaleController();
+      await _mount(
+        tester,
+        size: const Size(320, 568),
+        textScale: 1.5,
+        languages: languages,
+      );
+      await _tab(tester, AppDestination.servers);
+      await tester.tap(find.byKey(const ValueKey('server-complex')));
+      await tester.pumpAndSettle();
+      for (final locale in AppTranslations.supportedLocales) {
+        await languages.select(locale.languageCode);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byKey(const ValueKey('server-add')));
+        await tester.tap(find.byKey(const ValueKey('server-add')));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('server-connection-dialog')),
+          findsOneWidget,
+        );
+        final copy = find.byKey(const ValueKey('server-dialog-copy-address'));
+        await tester.ensureVisible(copy);
+        await tester.tap(copy);
+        await tester.pumpAndSettle();
+        final close = find.byKey(const ValueKey('close-server-connection'));
+        await tester.ensureVisible(close);
+        await tester.tap(close);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('server-connection-dialog')),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull, reason: locale.languageCode);
+      }
+    },
+  );
 
   testWidgets(
     'onboarding completion enters Find and named routes open each tab',

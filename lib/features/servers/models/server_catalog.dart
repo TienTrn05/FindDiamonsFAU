@@ -8,20 +8,7 @@ class ServerItem {
     required this.capacity,
     required this.address,
     required this.status,
-    this.edition = 'bedrock',
-    this.bedrockAddress,
-    this.javaAddress,
-    this.isOnline,
-    this.playersOnline,
-    this.playersMax,
-    this.version,
-    this.motd,
-    this.icon,
-    this.joinNote = '',
-    this.infoSource = '',
-    this.bannerStyle = 'full',
-    this.bannerUrl,
-    this.website = 'https://example.com',
+    this.website = '',
     this.description =
         'Welcome to our community! Explore new worlds, build '
         'with friends and discover your next adventure. Enjoy a choice of '
@@ -30,7 +17,9 @@ class ServerItem {
     this.bannerLabel = 'SKYBLOCK',
     this.bannerImage = 'assets/images/block_landscape.png',
     this.port = 19132,
-  });
+    String? javaAddress,
+    this.javaPort = 25565,
+  }) : javaAddress = javaAddress ?? address;
   factory ServerItem.fromJson(Map<String, dynamic> json) => ServerItem(
     id: json['id'] as String,
     rank: json['rank'] as int,
@@ -40,13 +29,7 @@ class ServerItem {
     capacity: json['capacity'] as int,
     address: json['address'] as String,
     status: json['status'] as String,
-    edition: json['edition'] as String? ?? 'bedrock',
-    bedrockAddress: json['bedrockAddress'] as String?,
-    javaAddress: json['javaAddress'] as String?,
-    isOnline: (json['status'] as String?) == 'online',
-    playersOnline: json['online'] as int?,
-    playersMax: json['capacity'] as int?,
-    website: json['website'] as String? ?? 'https://example.com',
+    website: json['website'] as String? ?? '',
     description:
         json['description'] as String? ??
         'Welcome to our community! Explore new worlds, build with friends '
@@ -60,6 +43,8 @@ class ServerItem {
     bannerImage:
         json['bannerImage'] as String? ?? 'assets/images/block_landscape.png',
     port: json['port'] as int? ?? 19132,
+    javaAddress: json['javaAddress'] as String?,
+    javaPort: json['javaPort'] as int? ?? 25565,
   );
 
   factory ServerItem.fromApiJson(
@@ -143,6 +128,8 @@ class ServerItem {
   final String bannerLabel;
   final String bannerImage;
   final int port;
+  final String javaAddress;
+  final int javaPort;
 }
 
 class ServerCatalog {

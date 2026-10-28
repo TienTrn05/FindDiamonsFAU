@@ -12,6 +12,7 @@ abstract final class AppLayout {
   static const navigationIconSize = 32.0;
   static const navigationMinHeight = 72.0;
   static const adBannerHeight = 60.0;
+  static const serverBannerAspectRatio = 468 / 60;
   static const fieldMinHeight = 48.0;
   static const compactContentWidth = 360.0;
 

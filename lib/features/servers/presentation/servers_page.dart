@@ -11,6 +11,7 @@ import '../data/api_servers_repository.dart';
 import '../data/servers_repository.dart';
 import '../models/server_catalog.dart';
 import 'server_info_page.dart';
+import 'server_banner.dart';
 
 class ServersPage extends StatefulWidget {
   const ServersPage({super.key, this.repository});
@@ -29,12 +30,20 @@ class _ServersPageState extends State<ServersPage> {
     super.dispose();
   }
 
-  void _details(ServerItem server) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      settings: RouteSettings(name: '/servers/${server.id}'),
-      builder: (_) => ServerInfoPage(server: server),
-    ),
-  );
+  void _details(ServerItem server) {
+    final access = MonetizationScope.maybeOf(context);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        settings: RouteSettings(name: '/servers/${server.id}'),
+        builder: (_) => access == null
+            ? ServerInfoPage(server: server)
+            : MonetizationScope(
+                controller: access,
+                child: ServerInfoPage(server: server),
+              ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => LandscapeBackground(
