@@ -22,17 +22,23 @@ import '../models/skin_item.dart';
 import 'skin_unlock_dialog.dart';
 
 class SkinsPage extends StatefulWidget {
-  const SkinsPage({super.key, required this.onGoPro, this.repository});
+  const SkinsPage({
+    super.key,
+    required this.onGoPro,
+    this.repository,
+    this.controller,
+  });
   final VoidCallback onGoPro;
   final SkinsRepository? repository;
+  final SkinsBloc? controller;
   @override
   State<SkinsPage> createState() => _SkinsPageState();
 }
 
 class _SkinsPageState extends State<SkinsPage> {
-  late final SkinsBloc _bloc = SkinsBloc(
-    widget.repository ?? JsonSkinsRepository(),
-  )..load();
+  late final SkinsBloc _bloc =
+      widget.controller ??
+      (SkinsBloc(widget.repository ?? JsonSkinsRepository())..load());
   late final _fallbackMonetization = AppMonetization();
   AppMonetization get _access =>
       MonetizationScope.maybeOf(context) ?? _fallbackMonetization;
@@ -47,7 +53,7 @@ class _SkinsPageState extends State<SkinsPage> {
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
-    _bloc.dispose();
+    if (widget.controller == null) _bloc.dispose();
     _fallbackMonetization.dispose();
     super.dispose();
   }

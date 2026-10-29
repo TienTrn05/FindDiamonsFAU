@@ -1,10 +1,20 @@
 import '../../../core/bloc/resource_controller.dart';
 import '../data/maps_repository.dart';
+import '../data/map_download_repository.dart';
 import '../models/map_catalog.dart';
+import 'map_download_controller.dart';
 
 class MapsBloc extends ResourceController<MapCatalog> {
-  MapsBloc(this.repository);
+  MapsBloc(this.repository, {MapDownloadRepository? downloads})
+    : _downloadRepository = downloads ?? LocalMapDownloadRepository();
   final MapsRepository repository;
+  final MapDownloadRepository _downloadRepository;
+  final _downloads = <String, MapDownloadController>{};
+
+  MapDownloadController downloadFor(MapItem item) => _downloads.putIfAbsent(
+    item.id,
+    () => MapDownloadController(item, _downloadRepository)..restore(),
+  );
   String? _category;
   String? seedVersion;
   List<String> get seedVersions => {
@@ -63,5 +73,13 @@ class MapsBloc extends ResourceController<MapCatalog> {
   void toggleFavourite(String id) {
     repository.toggleFavourite(id);
     refresh();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _downloads.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 }

@@ -44,10 +44,16 @@ class SkinsBloc extends ResourceController<List<SkinItem>> {
     }
   }
 
-  SkinItem get selected => data!.firstWhere(
-    (item) => item.id == selectedId,
-    orElse: () => data!.first,
-  );
+  SkinItem? get selectedOrNull {
+    final items = data;
+    if (items == null || items.isEmpty) return null;
+    return items.firstWhere(
+      (item) => item.id == selectedId,
+      orElse: () => items.first,
+    );
+  }
+
+  SkinItem get selected => selectedOrNull!;
 
   void select(SkinItem item) {
     selectedId = item.id;

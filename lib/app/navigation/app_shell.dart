@@ -17,6 +17,7 @@ import '../../features/maps/presentation/maps_page.dart';
 import '../../features/onboarding/presentation/paywall.dart';
 import '../../features/servers/presentation/servers_page.dart';
 import '../../features/skins/presentation/skins_page.dart';
+import '../../features/skins/bloc/skins_bloc.dart';
 
 /// Only composes feature routes and owns shared session dependencies.
 class AppShell extends StatefulWidget {
@@ -129,6 +130,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late final AppRepositories _repositories =
       widget.repositories ?? AppRepositories();
   late final HistoryBloc _history = HistoryBloc(_repositories.history)..load();
+  late final SkinsBloc _skins = SkinsBloc(_repositories.skins)..load();
   late final List<Widget> _pages = [
     FindPage(
       onGoPro: _goPro,
@@ -139,8 +141,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       repository: _repositories.find,
     ),
     HistoryPage(controller: _history, onGoPro: _goPro, onHelp: _help),
-    SkinsPage(onGoPro: _goPro, repository: _repositories.skins),
-    ServersPage(repository: _repositories.servers),
+    SkinsPage(onGoPro: _goPro, controller: _skins),
+    ListenableBuilder(
+      listenable: _skins,
+      builder: (_, _) => ServersPage(
+        repository: _repositories.servers,
+        selectedSkin: _skins.selectedOrNull,
+      ),
+    ),
     MapsPage(onGoPro: _goPro, repository: _repositories.maps),
   ];
 
@@ -186,6 +194,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _sessionAccess?.removeListener(_prepareInterstitial);
     _sessionAccess?.setForeground(false);
     _history.dispose();
+    _skins.dispose();
     _fallbackMonetization.dispose();
     super.dispose();
   }

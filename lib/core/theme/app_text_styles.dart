@@ -24,7 +24,7 @@ abstract final class AppTextStyles {
   );
   static const fieldValue = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: FontWeight.w400,
     color: AppColors.text,
     fontFeatures: [FontFeature.tabularFigures()],
@@ -44,7 +44,7 @@ abstract final class AppTextStyles {
   static const itemTitle = TextStyle(fontFamily: AppFonts.body, fontSize: 19);
   static const historyCard = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: FontWeight.w700,
     color: AppColors.text,
     fontFeatures: [FontFeature.tabularFigures()],

@@ -43,6 +43,8 @@ import 'package:roblox/features/onboarding/data/onboarding_preferences.dart';
 import 'package:roblox/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:roblox/features/servers/data/servers_repository.dart';
 import 'package:roblox/features/servers/presentation/server_banner.dart';
+import 'package:roblox/features/servers/presentation/server_profile_header.dart';
+import 'package:roblox/common/widgets/skin_head.dart';
 import 'package:roblox/features/skins/data/skins_repository.dart';
 import 'support/memory_history_store.dart';
 import 'support/fake_skin_share.dart';
@@ -1810,6 +1812,48 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('server header follows the skin selected across tabs', (
+    tester,
+  ) async {
+    await _mount(tester);
+    await _tab(tester, AppDestination.skins);
+    await tester.tap(find.byKey(const ValueKey('skin-batman')));
+    await tester.pumpAndSettle();
+    await _tab(tester, AppDestination.servers);
+    final header = find.byType(ServerProfileHeader);
+    expect(
+      tester.widget<ServerProfileHeader>(header).selectedSkin?.id,
+      'batman',
+    );
+    expect(
+      tester
+          .widget<SkinHead>(
+            find.descendant(of: header, matching: find.byType(SkinHead)),
+          )
+          .palette,
+      'knight',
+    );
+
+    await _tab(tester, AppDestination.skins);
+    await tester.tap(find.byKey(const ValueKey('skin-steve')));
+    await tester.pumpAndSettle();
+    await _tab(tester, AppDestination.servers);
+    expect(
+      tester.widget<ServerProfileHeader>(header).selectedSkin?.id,
+      'steve',
+    );
+    expect(
+      tester
+          .widget<SkinHead>(
+            find.descendant(of: header, matching: find.byType(SkinHead)),
+          )
+          .palette,
+      'steve',
+    );
+    expect(find.text('Tap here...'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('skins select free characters, animate and open locked offer', (
     tester,

@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/widgets/app_button.dart';
 import '../../../common/widgets/app_page_frame.dart';
@@ -13,8 +13,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../bloc/maps_bloc.dart';
+import '../bloc/map_download_controller.dart';
 import '../models/map_catalog.dart';
 import 'map_unlock_dialog.dart';
+import 'map_launch_dialog.dart';
 
 class MapDetailsPage extends StatefulWidget {
   const MapDetailsPage({
@@ -35,34 +37,61 @@ class MapDetailsPage extends StatefulWidget {
 }
 
 class _MapDetailsPageState extends State<MapDetailsPage> {
-  late final _access = widget.monetization ?? AppMonetization();
+  AppMonetization? _ownedAccess;
+  AppMonetization get _access =>
+      widget.monetization ??
+      MonetizationScope.maybeOf(context) ??
+      (_ownedAccess ??= AppMonetization());
+  late final MapDownloadController _download = widget.bloc.downloadFor(
+    widget.item,
+  );
   bool _preloadScheduled = false;
   bool _dialogOpen = false;
 
   bool get _locked => widget.bloc.isLocked(widget.item, isPro: _access.isPro);
 
   Future<void> _downloadMap() async {
-    final link =
-        widget.item.downloadUrl ??
-        widget.item.downloadPageUrl ??
-        widget.item.sourceUrl;
-    final uri = link == null ? null : Uri.tryParse(link);
-    try {
-      if (uri == null ||
-          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        _showDownloadError();
-      }
-    } catch (error, stackTrace) {
-      debugPrint('Map download link could not be opened: $error\n$stackTrace');
-      _showDownloadError();
+    if (_locked || _dialogOpen || _download.downloading) return;
+    await _download.download();
+  }
+
+  void _missingFile() {
+    _download.invalidateSavedFile();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: AppText(
+            'The saved map is missing. Please download it again.',
+          ),
+        ),
+      );
     }
   }
 
-  void _showDownloadError() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: AppText('Unable to open download page.')),
-    );
+  Future<void> _launchMap() async {
+    final file = _download.saved;
+    if (file == null || _locked || _dialogOpen) return;
+    _dialogOpen = true;
+    try {
+      final exists = await File(file.path).exists();
+      if (!mounted) return;
+      if (!exists) {
+        _missingFile();
+        return;
+      }
+      await showGeneralDialog<void>(
+        context: context,
+        barrierColor: const Color(0xE6000000),
+        pageBuilder: (_, _, _) => MapLaunchDialog(
+          item: widget.item,
+          file: file,
+          monetization: _access,
+          onMissingFile: _missingFile,
+        ),
+      );
+    } finally {
+      _dialogOpen = false;
+    }
   }
 
   void _preload() {
@@ -102,13 +131,13 @@ class _MapDetailsPageState extends State<MapDetailsPage> {
 
   @override
   void dispose() {
-    if (widget.monetization == null) _access.dispose();
+    _ownedAccess?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([widget.bloc, _access]),
+    listenable: Listenable.merge([widget.bloc, _access, _download]),
     builder: (context, _) {
       _preload();
       final item = widget.item;
@@ -208,20 +237,63 @@ class _MapDetailsPageState extends State<MapDetailsPage> {
                       ),
                       onPressed: _unlock,
                     )
-                  else if (item.downloadUrl != null ||
-                      item.downloadPageUrl != null ||
-                      item.sourceUrl != null)
+                  else if (_download.saved != null)
                     AppButton(
-                      key: const ValueKey('download-map'),
-                      label: 'Tải map',
+                      key: const ValueKey('launch-map'),
+                      label: 'Launch Map',
                       pixel: true,
                       leading: const Icon(
-                        Icons.open_in_new,
+                        Icons.rocket_launch,
                         color: AppColors.onPrimary,
                       ),
-                      onPressed: _downloadMap,
+                      onPressed: _launchMap,
                     )
-                  else ...[
+                  else if (_download.restoring || _download.canDownload) ...[
+                    AppButton(
+                      key: const ValueKey('download-map'),
+                      label: _download.restoring
+                          ? 'Checking download...'
+                          : _download.downloading
+                          ? 'Downloading...'
+                          : _download.error == null
+                          ? 'Download Map'
+                          : 'Retry Download',
+                      pixel: true,
+                      leading: const Icon(
+                        Icons.download,
+                        color: AppColors.onPrimary,
+                      ),
+                      onPressed: _download.restoring || _download.downloading
+                          ? null
+                          : _downloadMap,
+                    ),
+                    if (_download.downloading) ...[
+                      const SizedBox(height: 12),
+                      LinearProgressIndicator(
+                        key: const ValueKey('map-download-progress'),
+                        value: _download.progress.fraction,
+                        color: AppColors.primary,
+                        minHeight: 6,
+                      ),
+                      const SizedBox(height: 8),
+                      AppText(
+                        _download.progress.fraction == null
+                            ? '${(_download.progress.received / 1024).toStringAsFixed(0)} KB downloaded'
+                            : '${(_download.progress.fraction! * 100).floor().clamp(0, 99)}%',
+                        key: const ValueKey('map-download-percent'),
+                        style: AppTextStyles.pixelBody,
+                      ),
+                    ],
+                    if (_download.error != null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 10),
+                        child: AppText(
+                          'Unable to download this map. Check the download link and try again.',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.dialogBody,
+                        ),
+                      ),
+                  ] else ...[
                     const AppText(
                       'Map download is not available yet.',
                       textAlign: TextAlign.center,

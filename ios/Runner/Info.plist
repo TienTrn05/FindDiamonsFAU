@@ -29,6 +29,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Your permission allows us to use your activity across other companies' apps and websites to show more relevant ads.</string>
 	<key>NSLocalNetworkUsageDescription</key>
