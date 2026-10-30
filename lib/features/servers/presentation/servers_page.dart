@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/widgets/app_text.dart';
 import '../../../common/widgets/landscape_background.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../../core/monetization/app_monetization.dart';
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../bloc/servers_bloc.dart';
@@ -77,6 +79,18 @@ class _ServersPageState extends State<ServersPage> {
           const SnackBar(content: AppText('Unable to save your username.')),
         );
       }
+    }
+  }
+
+  Future<void> _openServerListing() async {
+    final url = ApiConfig.baseUri.resolve('/mcstat.html');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: AppText('Unable to open the server listing page.'),
+        ),
+      );
     }
   }
 
@@ -155,12 +169,19 @@ class _ServersPageState extends State<ServersPage> {
                   builder: (context, constraints) => ListView.builder(
                     key: const PageStorageKey('server-list'),
                     padding: const EdgeInsets.only(bottom: 10),
-                    itemCount: catalog.servers.length,
+                    itemCount: catalog.servers.length + 1,
                     itemBuilder: (context, index) {
+                      if (index == catalog.servers.length) {
+                        return _ServerListingLink(
+                          compact: constraints.maxWidth < 600,
+                          onTap: _openServerListing,
+                        );
+                      }
                       final server = catalog.servers[index];
                       return _ServerCard(
                         server: server,
-                        compact: constraints.maxWidth < 430,
+                        compact: constraints.maxWidth < 600,
+                        narrow: constraints.maxWidth < 380,
                         onTap: () => _details(server),
                       );
                     },
@@ -179,10 +200,12 @@ class _ServerCard extends StatelessWidget {
   const _ServerCard({
     required this.server,
     required this.compact,
+    required this.narrow,
     required this.onTap,
   });
   final ServerItem server;
   final bool compact;
+  final bool narrow;
   final VoidCallback onTap;
 
   bool get _hasRecordedStatus =>
@@ -259,7 +282,7 @@ class _ServerCard extends StatelessWidget {
       errorBuilder: (_, _, _) => fallback,
     );
     return SizedBox(
-      height: compact ? 52 : 76,
+      height: compact ? 34 : 76,
       width: double.infinity,
       child: url == null
           ? bundledBanner
@@ -278,15 +301,15 @@ class _ServerCard extends StatelessWidget {
     ),
     child: Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 9 : 12,
-        vertical: compact ? 5 : 7,
+        horizontal: compact ? 7 : 12,
+        vertical: compact ? 3 : 7,
       ),
       child: AppText(
         text,
         style: TextStyle(
           fontFamily: 'Roboto',
           color: AppColors.text,
-          fontSize: compact ? 12 : 14,
+          fontSize: compact ? 11 : 14,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -295,7 +318,7 @@ class _ServerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.only(bottom: compact ? AppSpacing.xl : AppSpacing.xxl),
+    padding: EdgeInsets.only(bottom: compact ? 13 : 29),
     child: Material(
       color: Colors.transparent,
       child: InkWell(
@@ -315,7 +338,7 @@ class _ServerCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    width: compact ? 72 : 110,
+                    width: compact ? 48 : 110,
                     alignment: Alignment.center,
                     color: AppColors.rank,
                     child: AppText(
@@ -323,7 +346,7 @@ class _ServerCard extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: 'Roboto',
                         color: AppColors.onPrimary,
-                        fontSize: compact ? 28 : 38,
+                        fontSize: compact ? 20 : 38,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -332,52 +355,47 @@ class _ServerCard extends StatelessWidget {
                     child: Container(
                       color: AppColors.serverSurface,
                       padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 12 : 18,
-                        vertical: compact ? 10 : 14,
+                        horizontal: compact ? 8 : 18,
+                        vertical: compact ? 5 : 14,
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
+                      child: narrow
+                          ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                AppText(
-                                  server.name,
-                                  style: TextStyle(
-                                    fontFamily: 'Roboto',
-                                    color: AppColors.text,
-                                    fontSize: compact ? 16 : 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Row(
+                                  children: [
+                                    Expanded(child: _name()),
+                                    const SizedBox(width: 6),
+                                    _count(),
+                                  ],
                                 ),
-                                if (server.tags.isNotEmpty ||
-                                    server.edition.toLowerCase() == 'java') ...[
-                                  SizedBox(height: compact ? 8 : 12),
-                                  Wrap(
-                                    spacing: compact ? 6 : 9,
-                                    runSpacing: compact ? 5 : 7,
-                                    children: [
-                                      for (final tag in server.tags) _tag(tag),
-                                      if (server.edition.toLowerCase() ==
-                                              'java' &&
-                                          !server.tags.any(
-                                            (tag) =>
-                                                tag.toLowerCase() == 'java',
-                                          ))
-                                        _tag('Java'),
-                                    ],
-                                  ),
+                                if (_hasTags) ...[
+                                  const SizedBox(height: 5),
+                                  _tags(),
                                 ],
                               ],
+                            )
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _name(),
+                                      if (_hasTags) ...[
+                                        SizedBox(height: compact ? 6 : 12),
+                                        _tags(),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(width: compact ? 6 : 14),
+                                _count(),
+                              ],
                             ),
-                          ),
-                          SizedBox(width: compact ? 8 : 14),
-                          _count(),
-                        ],
-                      ),
                     ),
                   ),
                 ],
@@ -385,6 +403,65 @@ class _ServerCard extends StatelessWidget {
             ),
             Container(height: compact ? 4 : 6, color: AppColors.action),
           ],
+        ),
+      ),
+    ),
+  );
+
+  bool get _hasTags =>
+      server.tags.isNotEmpty || server.edition.toLowerCase() == 'java';
+
+  Widget _name() => AppText(
+    server.name,
+    style: TextStyle(
+      fontFamily: 'Roboto',
+      color: AppColors.text,
+      fontSize: compact ? 14 : 20,
+      fontWeight: FontWeight.w700,
+    ),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+  );
+
+  Widget _tags() => Wrap(
+    spacing: compact ? 4 : 9,
+    runSpacing: compact ? 3 : 7,
+    children: [
+      for (final tag in server.tags) _tag(tag),
+      if (server.edition.toLowerCase() == 'java' &&
+          !server.tags.any((tag) => tag.toLowerCase() == 'java'))
+        _tag('Java'),
+    ],
+  );
+}
+
+class _ServerListingLink extends StatelessWidget {
+  const _ServerListingLink({required this.compact, required this.onTap});
+
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(top: compact ? 4 : 8, bottom: compact ? 8 : 12),
+    child: Material(
+      color: AppColors.serverHero.withValues(alpha: .45),
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: compact ? 64 : 88,
+          width: double.infinity,
+          child: Center(
+            child: AppText(
+              'Own a server? List it here!',
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: AppColors.text,
+                fontSize: compact ? 16 : 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ),
       ),
     ),

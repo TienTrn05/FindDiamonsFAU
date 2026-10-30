@@ -208,7 +208,7 @@ class _FindPageState extends State<FindPage> {
                           key: ValueKey('game-version-${version.id}'),
                           value: version.id,
                           child: AppText(
-                            '${version.apiVersion} Java',
+                            '${version.apiVersion} ${version.edition == 'java' ? 'Java' : 'Bedrock'}',
                             style: AppTextStyles.fieldValue,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

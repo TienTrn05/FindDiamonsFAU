@@ -22,12 +22,9 @@ class ApiFindRepository extends JsonFindRepository {
 
   Future<FindCatalog> _loadApiCatalog() async {
     final bundled = await super.load();
-    final fallbackVersions = bundled.versions
-        .where((version) => version.edition == 'java')
-        .toList(growable: false);
-    final javaVersions = await _loadJavaVersions(fallbackVersions);
-    if (javaVersions.isEmpty) {
-      throw const FormatException('No Java versions are configured.');
+    final versions = await _loadVersions(bundled.versions);
+    if (versions.isEmpty) {
+      throw const FormatException('No game versions are configured.');
     }
 
     try {
@@ -46,7 +43,7 @@ class ApiFindRepository extends JsonFindRepository {
       return FindCatalog(
         title: bundled.title,
         help: bundled.help,
-        versions: javaVersions,
+        versions: versions,
         ores: ores,
         positions: bundled.positions,
       );
@@ -55,14 +52,14 @@ class ApiFindRepository extends JsonFindRepository {
       return FindCatalog(
         title: bundled.title,
         help: bundled.help,
-        versions: javaVersions,
+        versions: versions,
         ores: bundled.ores,
         positions: bundled.positions,
       );
     }
   }
 
-  Future<List<GameVersion>> _loadJavaVersions(
+  Future<List<GameVersion>> _loadVersions(
     List<GameVersion> fallback,
   ) async {
     try {
@@ -71,26 +68,26 @@ class ApiFindRepository extends JsonFindRepository {
         throw HttpException('GET /api/versions returned HTTP $statusCode');
       }
       final decoded = jsonDecode(body) as Map<String, dynamic>;
-      final rawVersions = decoded['java'];
-      if (rawVersions is! List) {
-        throw const FormatException('Invalid Java server version list.');
+      final versions = <GameVersion>[];
+      for (final edition in ['java', 'bedrock']) {
+        final rawVersions = decoded[edition];
+        if (rawVersions is! List) continue;
+        versions.addAll(
+          rawVersions
+              .whereType<String>()
+              .where((version) => RegExp(r'^\d+(?:\.\d+)*$').hasMatch(version))
+              .map((version) => GameVersion(
+                    id: '${edition}_$version',
+                    label: '$version ${edition == 'java' ? 'Java' : 'Bedrock'} Edition',
+                    edition: edition,
+                    apiVersion: version,
+                  )),
+        );
       }
-      final versions = rawVersions
-          .whereType<String>()
-          .where((version) => RegExp(r'^\d+(?:\.\d+)*$').hasMatch(version))
-          .map(
-            (version) => GameVersion(
-              id: 'java_$version',
-              label: '$version Java Edition',
-              edition: 'java',
-              apiVersion: version,
-            ),
-          )
-          .toList(growable: false);
       return versions.isEmpty ? fallback : versions;
     } catch (error) {
       debugPrint(
-        'Java version API unavailable; using bundled versions: $error',
+        'Version API unavailable; using bundled versions: $error',
       );
       return fallback;
     }
