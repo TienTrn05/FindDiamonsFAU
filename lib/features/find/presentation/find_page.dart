@@ -46,6 +46,7 @@ class _FindPageState extends State<FindPage> {
     ..load();
   final _form = GlobalKey<FormState>();
   final _digging = GlobalKey();
+  final _versionField = GlobalKey();
   final _x = TextEditingController();
   final _z = TextEditingController();
   final _seed = TextEditingController();
@@ -81,6 +82,51 @@ class _FindPageState extends State<FindPage> {
 
   String? _coordinate(String? value) =>
       int.tryParse(value?.trim() ?? '') == null ? 'Enter a whole number' : null;
+
+  Future<void> _openVersionMenu(FindCatalog catalog) async {
+    final fieldContext = _versionField.currentContext;
+    if (fieldContext == null || _bloc.searching) return;
+    final field = fieldContext.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final topLeft = field.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromRect(
+      topLeft & field.size,
+      Offset.zero & overlay.size,
+    );
+    final currentVersionId = _bloc.version.id;
+    final value = await showMenu<String>(
+      context: context,
+      position: position,
+      initialValue: currentVersionId,
+      color: AppColors.surface,
+      items: catalog.versions
+          .map(
+            (version) => PopupMenuItem<String>(
+              value: version.id,
+              height: 48,
+              padding: EdgeInsets.zero,
+              child: Container(
+                height: 48,
+                width: double.infinity,
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                color: version.id == currentVersionId
+                    ? const Color(0xFFBEC1C3)
+                    : AppColors.surface,
+                child: AppText(
+                  '${version.apiVersion} ${version.edition == 'java' ? 'Java' : 'Bedrock'}',
+                  style: AppTextStyles.fieldValue,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          )
+          .toList(growable: false),
+    );
+    if (value != null && mounted) _bloc.selectVersion(value);
+  }
 
   Future<void> _search() async {
     if (_bloc.searching || !_form.currentState!.validate()) return;
@@ -196,31 +242,30 @@ class _FindPageState extends State<FindPage> {
                   style: AppTextStyles.fieldLabel,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                DropdownButtonFormField<String>(
-                  key: const ValueKey('game-version'),
-                  initialValue: _bloc.version.id,
-                  isExpanded: true,
-                  decoration: AppTheme.gameInputDecoration,
-                  style: AppTextStyles.fieldValue,
-                  items: catalog.versions
-                      .map(
-                        (version) => DropdownMenuItem(
-                          key: ValueKey('game-version-${version.id}'),
-                          value: version.id,
-                          child: AppText(
-                            '${version.apiVersion} ${version.edition == 'java' ? 'Java' : 'Bedrock'}',
-                            style: AppTextStyles.fieldValue,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                Container(
+                  key: _versionField,
+                  child: InkWell(
+                    key: const ValueKey('game-version'),
+                    onTap: _bloc.searching
+                        ? null
+                        : () => _openVersionMenu(catalog),
+                    child: InputDecorator(
+                      decoration: AppTheme.gameInputDecoration,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: AppText(
+                              '${_bloc.version.apiVersion} ${_bloc.version.edition == 'java' ? 'Java' : 'Bedrock'}',
+                              style: AppTextStyles.fieldValue,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: _bloc.searching
-                      ? null
-                      : (value) {
-                          if (value != null) _bloc.selectVersion(value);
-                        },
+                          const Icon(Icons.arrow_drop_down),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Row(
