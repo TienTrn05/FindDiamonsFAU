@@ -1,5 +1,6 @@
 import '../../../common/widgets/app_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../common/widgets/game_header.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../../common/widgets/ad_placements.dart';
@@ -45,9 +46,34 @@ class _MapsPageState extends State<MapsPage> {
     );
   }
 
+  Future<void> _copySeed(MapItem item) async {
+    final seed = item.seed;
+    if (seed == null) return;
+    await Clipboard.setData(ClipboardData(text: seed));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: AppText('Seed copied')));
+  }
+
+  String _seedVersionLabel(MapItem item) {
+    if (item.versions.isEmpty) return item.subtitle;
+    return item.versions
+        .map((version) {
+          final includesEdition = version.toLowerCase().contains('java') ||
+              version.toLowerCase().contains('bedrock');
+          return includesEdition || item.seedEdition.isEmpty
+              ? version
+              : '$version ${item.seedEdition}';
+        })
+        .join(' · ');
+  }
+
   Widget _seedFilters() {
-    final versions = _bloc.seedVersions;
-    final rows = [versions.take(4), versions.skip(4).take(5), versions.skip(9)];
+    final rows = [
+      ('Java', 'java', _bloc.javaSeedVersions),
+      ('Bedrock', 'bedrock', _bloc.bedrockSeedVersions),
+    ];
     return Container(
       key: const ValueKey('seed-version-filters'),
       width: double.infinity,
@@ -60,7 +86,7 @@ class _MapsPageState extends State<MapsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var row = 0; row < rows.length; row++)
-            if (rows[row].isNotEmpty)
+            if (rows[row].$3.isNotEmpty)
               Padding(
                 padding: EdgeInsets.only(top: row == 0 ? 0 : AppSpacing.xs),
                 child: Align(
@@ -70,39 +96,71 @@ class _MapsPageState extends State<MapsPage> {
                       key: ValueKey('seed-version-row-$row'),
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final version in rows[row])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.navigationSelected,
+                              border: Border.all(color: AppColors.primary),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: AppText(
+                              rows[row].$1,
+                              style: AppTextStyles.serverInfoTag.copyWith(
+                                fontSize: 11,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                        for (final version in rows[row].$3)
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
-                            child: Semantics(
-                              button: true,
-                              selected: _bloc.seedVersion == version,
-                              child: Material(
-                                color: _bloc.seedVersion == version
-                                    ? AppColors.navigationSelected
-                                    : AppColors.chipSurface,
-                                shape: const StadiumBorder(),
-                                child: InkWell(
-                                  key: ValueKey('seed-version-$version'),
-                                  customBorder: const StadiumBorder(),
-                                  onTap: () => _bloc.selectSeedVersion(
-                                    _bloc.seedVersion == version
-                                        ? null
-                                        : version,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 5,
+                            child: Builder(
+                              builder: (context) {
+                                final selected =
+                                    _bloc.seedVersion == version &&
+                                    _bloc.seedEdition == rows[row].$2;
+                                return Semantics(
+                                  button: true,
+                                  selected: selected,
+                                  child: Material(
+                                    color: selected
+                                        ? AppColors.navigationSelected
+                                        : AppColors.chipSurface,
+                                    shape: const StadiumBorder(),
+                                    child: InkWell(
+                                      key: ValueKey(
+                                        'seed-version-${rows[row].$2}-$version',
+                                      ),
+                                      customBorder: const StadiumBorder(),
+                                      onTap: () => _bloc.selectSeedVersion(
+                                        selected ? null : version,
+                                        edition: selected ? null : rows[row].$2,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 5,
+                                        ),
+                                        child: AppText(
+                                          version,
+                                          style: AppTextStyles.serverInfoTag
+                                              .copyWith(
+                                                fontSize: 11,
+                                                height: 1.2,
+                                              ),
+                                          maxLines: 1,
+                                        ),
+                                      ),
                                     ),
-                                    child: AppText(
-                                      version,
-                                      style: AppTextStyles.serverInfoTag
-                                          .copyWith(fontSize: 11, height: 1.2),
-                                      maxLines: 1,
-                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ),
                       ],
@@ -239,7 +297,9 @@ class _MapsPageState extends State<MapsPage> {
                         child: InkWell(
                           key: ValueKey('map-${item.id}'),
                           borderRadius: cardRadius,
-                          onTap: () => _open(item),
+                          onTap: item.category == 'Seeds'
+                              ? null
+                              : () => _open(item),
                           child: Container(
                             padding: EdgeInsets.all(compact ? 8 : 12),
                             decoration: BoxDecoration(
@@ -345,6 +405,56 @@ class _MapsPageState extends State<MapsPage> {
                                         ],
                                       ),
                                       SizedBox(height: compact ? 7 : 10),
+                                      if (item.category == 'Seeds') ...[
+                                        AppText(
+                                          _seedVersionLabel(item),
+                                          style: AppTextStyles.serverInfoTag
+                                              .copyWith(
+                                                fontSize: compact ? 11 : 13,
+                                                color: AppColors.textMuted,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        SizedBox(height: compact ? 4 : 6),
+                                      ],
+                                      if (item.category == 'Seeds' &&
+                                          item.seed != null)
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: AppText(
+                                                'Seed: ${item.seed}',
+                                                style: AppTextStyles.itemTitle
+                                                    .copyWith(
+                                                      fontSize: compact ? 13 : 16,
+                                                      color: AppColors.textMuted,
+                                                    ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              key: ValueKey('copy-seed-${item.id}'),
+                                              tooltip: context.tr('Copy seed'),
+                                              visualDensity: VisualDensity.compact,
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(
+                                                minWidth: 32,
+                                                minHeight: 32,
+                                              ),
+                                              onPressed: () => _copySeed(item),
+                                              icon: const Icon(
+                                                Icons.content_copy,
+                                                size: 18,
+                                                color: AppColors.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (item.category == 'Seeds' &&
+                                          item.seed != null)
+                                        SizedBox(height: compact ? 4 : 6),
                                       AppText(
                                         item.description,
                                         style: AppTextStyles.pixelBody.copyWith(

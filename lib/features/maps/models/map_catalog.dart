@@ -73,6 +73,9 @@ class MapCatalog {
     required this.categories,
     required this.initialCategory,
     required this.items,
+    this.versions = const [],
+    this.javaVersions = const [],
+    this.bedrockVersions = const [],
   });
   factory MapCatalog.fromJson(Map<String, dynamic> json) => MapCatalog(
     title: json['title'] as String,
@@ -81,9 +84,17 @@ class MapCatalog {
     items: (json['items'] as List)
         .map((e) => MapItem.fromJson(e as Map<String, dynamic>))
         .toList(growable: false),
+    versions: List<String>.from(json['versions'] as List? ?? const []),
+    javaVersions: List<String>.from(json['javaVersions'] as List? ?? const []),
+    bedrockVersions: List<String>.from(
+      json['bedrockVersions'] as List? ?? const [],
+    ),
   );
   final String title;
   final List<String> categories;
   final String initialCategory;
   final List<MapItem> items;
+  final List<String> versions;
+  final List<String> javaVersions;
+  final List<String> bedrockVersions;
 }

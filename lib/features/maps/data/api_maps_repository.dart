@@ -29,13 +29,52 @@ class ApiMapsRepository extends JsonMapsRepository {
     } catch (error) {
       debugPrint('Seed API unavailable; using bundled seeds: $error');
     }
+    var versionsByEdition = <String, List<String>>{
+      'java': const [],
+      'bedrock': const [],
+    };
+    try {
+      versionsByEdition = await _loadVersions();
+    } catch (error) {
+      debugPrint('Version API unavailable; using seed versions: $error');
+      versionsByEdition = {
+        for (final edition in ['java', 'bedrock'])
+          edition: {
+            for (final item in seeds)
+              if (item.seedEdition.toLowerCase() == edition) ...item.versions,
+          }.toList(growable: false),
+      };
+    }
 
     return MapCatalog(
       title: localCatalog.title,
       categories: localCatalog.categories,
       initialCategory: localCatalog.initialCategory,
       items: [...maps, ...seeds],
+      javaVersions: versionsByEdition['java'] ?? const [],
+      bedrockVersions: versionsByEdition['bedrock'] ?? const [],
     );
+  }
+
+  Future<Map<String, List<String>>> _loadVersions() async {
+    final data = await _getJson('/api/versions');
+    final versionsByEdition = <String, List<String>>{};
+    for (final edition in ['java', 'bedrock']) {
+      final values = data[edition];
+      if (values is! List) {
+        versionsByEdition[edition] = const [];
+        continue;
+      }
+      final versions = <String>[];
+      for (final value in values) {
+        if (value is String && value.trim().isNotEmpty) {
+          final version = value.trim();
+          if (!versions.contains(version)) versions.add(version);
+        }
+      }
+      versionsByEdition[edition] = versions;
+    }
+    return versionsByEdition;
   }
 
   Future<List<MapItem>> _loadSeeds() async => (await _getItems('/api/seeds'))
@@ -159,6 +198,22 @@ class ApiMapsRepository extends JsonMapsRepository {
   }
 
   Future<List<Map<String, dynamic>>> _getItems(String path) async {
+    final decoded = await _getJson(path);
+    if (decoded['items'] is! List) {
+      throw FormatException('Invalid response from $path');
+    }
+
+    return (decoded['items'] as List)
+        .map((value) {
+          if (value is! Map<String, dynamic>) {
+            throw FormatException('Invalid item from $path');
+          }
+          return value;
+        })
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> _getJson(String path) async {
     final uri = baseUri.replace(
       path: '${baseUri.path.replaceFirst(RegExp(r'/$'), '')}$path',
     );
@@ -180,18 +235,10 @@ class ApiMapsRepository extends JsonMapsRepository {
       }
 
       final decoded = jsonDecode(body);
-      if (decoded is! Map<String, dynamic> || decoded['items'] is! List) {
+      if (decoded is! Map<String, dynamic>) {
         throw FormatException('Invalid response from $path');
       }
-
-      return (decoded['items'] as List)
-          .map((value) {
-            if (value is! Map<String, dynamic>) {
-              throw FormatException('Invalid item from $path');
-            }
-            return value;
-          })
-          .toList(growable: false);
+      return decoded;
     } finally {
       client.close(force: true);
     }
