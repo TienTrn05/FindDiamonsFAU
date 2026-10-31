@@ -25,9 +25,9 @@ abstract final class AppInsets {
 abstract final class AppRadii {
   static const small = BorderRadius.all(Radius.circular(5));
   static const standard = BorderRadius.all(Radius.circular(10));
-  static const card = BorderRadius.all(Radius.circular(28));
-  static const cardInner = BorderRadius.all(Radius.circular(26));
-  static const row = BorderRadius.all(Radius.circular(21));
-  static const sheet = BorderRadius.vertical(top: Radius.circular(38));
-  static const pill = BorderRadius.all(Radius.circular(100));
+  static const card = BorderRadius.all(Radius.circular(10));
+  static const cardInner = BorderRadius.all(Radius.circular(8));
+  static const row = BorderRadius.all(Radius.circular(8));
+  static const sheet = BorderRadius.vertical(top: Radius.circular(12));
+  static const pill = BorderRadius.all(Radius.circular(6));
 }

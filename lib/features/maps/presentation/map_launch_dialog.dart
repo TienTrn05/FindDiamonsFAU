@@ -149,7 +149,7 @@ class _MapLaunchDialogState extends State<MapLaunchDialog> {
       listenable: widget.monetization,
       builder: (context, _) => Material(
         key: const ValueKey('map-launch-overlay'),
-        color: Colors.transparent,
+        color: AppColors.cave.withValues(alpha: .96),
         child: SafeArea(
           child: Stack(
             children: [

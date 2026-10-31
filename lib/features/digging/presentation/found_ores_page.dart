@@ -1,3 +1,4 @@
+import '../../../common/widgets/game_back_button.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'dart:async';
@@ -9,6 +10,8 @@ import '../../../common/widgets/app_page_frame.dart';
 import '../../../common/widgets/app_text.dart';
 import '../../../common/widgets/digging_pickaxe.dart';
 import '../../../common/widgets/landscape_background.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
 import '../../../common/widgets/ore_art.dart';
 import '../../../core/models/search_record.dart';
 import '../../../core/monetization/app_monetization.dart';
@@ -210,17 +213,21 @@ class _FoundOresPageState extends State<FoundOresPage>
         child: Material(
           key: ValueKey('ore-card-$index'),
           color: found ? AppColors.oreCollectedSurface : AppColors.oreRow,
-          borderRadius: AppRadii.card,
+          shape: const PixelBorder(),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             key: ValueKey('ore-result-$index'),
-            borderRadius: AppRadii.card,
+            customBorder: const PixelBorder(),
             onTap: () => _chooseStatus(index),
             child: Container(
               constraints: const BoxConstraints(minHeight: 80),
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                borderRadius: AppRadii.card,
-                border: Border.all(color: AppColors.oreRowBorder, width: 3),
+                borderRadius: AppRadii.small,
+                border: Border.all(
+                  color: found ? AppColors.online : AppColors.helpBorder,
+                  width: 1.5,
+                ),
               ),
               child: Row(
                 children: [
@@ -249,7 +256,7 @@ class _FoundOresPageState extends State<FoundOresPage>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        width: 104,
+                        width: 74,
                         height: 40,
                         child: Stack(
                           alignment: Alignment.center,
@@ -293,6 +300,35 @@ class _FoundOresPageState extends State<FoundOresPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          MiningPanel(
+            borderColor: AppColors.accent,
+            child: Row(
+              children: [
+                OreIcon(ore: _ore, size: 52),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(
+                        '${widget.record.oreName} coordinates',
+                        style: AppTextStyles.itemTitle.copyWith(
+                          color: AppColors.text,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      MiningTag(
+                        'Seed: ${widget.record.seed}',
+                        icon: Icons.public,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
           for (var index = 0; index < _visibleCount; index++) _oreCard(index),
           if (widget.record.positions.isEmpty)
             const AppText(
@@ -310,7 +346,7 @@ class _FoundOresPageState extends State<FoundOresPage>
             AppButton(
               key: const ValueKey('show-all-ores'),
               label: 'Show all...',
-              backgroundColor: AppColors.danger,
+              backgroundColor: AppColors.gold,
               pixel: true,
               onPressed: widget.onGoPro,
               leading: const Icon(
@@ -374,31 +410,23 @@ class _FoundOresPageState extends State<FoundOresPage>
           key: const ValueKey('found-ores-preview'),
           child: Scaffold(
             appBar: AppBar(
-              backgroundColor: AppColors.surface,
-              surfaceTintColor: AppColors.surface,
+              backgroundColor: AppColors.cave,
+              surfaceTintColor: AppColors.transparent,
               systemOverlayStyle: AppTheme.systemUi,
               centerTitle: true,
-              leadingWidth: 92,
-              leading: TextButton.icon(
-                key: const ValueKey('found-ores-back'),
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.serverNavigation,
-                  padding: EdgeInsets.zero,
-                ),
-                icon: const Icon(Icons.arrow_back_ios_new, size: 24),
-                label: const FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: AppText(
-                    'Main',
-                    style: AppTextStyles.body,
-                    maxLines: 1,
-                  ),
+              toolbarHeight: 64,
+              leadingWidth: 72,
+              leading: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: GameBackButton(
+                  key: const ValueKey('found-ores-back'),
+                  size: 48,
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
               title: const AppText(
                 'Found Ores!',
-                style: AppTextStyles.serverTitle,
+                style: AppTextStyles.pixelTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

@@ -13,9 +13,11 @@ class HelpFaqIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     image: true,
-    label: kind == 'seed'
-        ? 'Example of a world seed in chat'
-        : 'Example of X, Y and Z coordinates',
+    label: context.tr(
+      kind == 'seed'
+          ? 'Example of a world seed in chat'
+          : 'Example of X, Y and Z coordinates',
+    ),
     child: ClipRRect(
       borderRadius: AppRadii.standard,
       child: AspectRatio(

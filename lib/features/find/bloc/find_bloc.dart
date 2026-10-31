@@ -81,6 +81,15 @@ class FindBloc extends ResourceController<FindCatalog> {
     refresh();
   }
 
+  void selectOre(String id) {
+    if (searching) return;
+    final index = availableOres.indexWhere((ore) => ore.id == id);
+    if (index < 0) return;
+    oreIndex = index;
+    _selectedOreId = id;
+    refresh();
+  }
+
   bool _versionAtLeast(String version, String minimum) {
     final current = version.split('.').map(int.tryParse).toList();
     final required = minimum.split('.').map(int.tryParse).toList();

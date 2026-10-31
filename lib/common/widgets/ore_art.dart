@@ -8,13 +8,27 @@ import '../../core/theme/ore_palette.dart';
 enum Ore { diamond, copper, coal, lapis, redstone, stone, gold, emerald }
 
 class OreIcon extends StatelessWidget {
-  const OreIcon({super.key, this.ore = Ore.diamond, this.size = 48});
+  const OreIcon({
+    super.key,
+    this.ore = Ore.diamond,
+    this.size = 48,
+    this.mineralTint,
+    this.showCenterGem = true,
+  });
   final Ore ore;
   final double size;
+  final Color? mineralTint;
+  final bool showCenterGem;
 
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(size: Size.square(size), painter: _OrePainter(ore));
+  Widget build(BuildContext context) => CustomPaint(
+    size: Size.square(size),
+    painter: _OrePainter(
+      ore,
+      mineralTint: mineralTint,
+      showCenterGem: showCenterGem,
+    ),
+  );
 }
 
 class OreBackground extends StatelessWidget {
@@ -74,8 +88,10 @@ class _PatternPainter extends CustomPainter {
 }
 
 class _OrePainter extends CustomPainter {
-  const _OrePainter(this.ore);
+  const _OrePainter(this.ore, {this.mineralTint, this.showCenterGem = true});
   final Ore ore;
+  final Color? mineralTint;
+  final bool showCenterGem;
 
   static const colors = [
     OrePalette.diamond,
@@ -182,7 +198,7 @@ class _OrePainter extends CustomPainter {
       );
     }
     if (ore != Ore.stone) {
-      final color = colors[ore.index];
+      final color = mineralTint ?? colors[ore.index];
       const flecks = [
         Offset(8, 6),
         Offset(18, 5),
@@ -207,7 +223,7 @@ class _OrePainter extends CustomPainter {
           Paint()..color = Color.lerp(color, AppColors.text, .2)!,
         );
       }
-      if (ore == Ore.diamond || ore == Ore.copper) {
+      if (showCenterGem && (ore == Ore.diamond || ore == Ore.copper)) {
         polygon(canvas, [
           const Offset(11, 14),
           const Offset(15, 11),
@@ -233,5 +249,8 @@ class _OrePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OrePainter oldDelegate) => ore != oldDelegate.ore;
+  bool shouldRepaint(_OrePainter oldDelegate) =>
+      ore != oldDelegate.ore ||
+      mineralTint != oldDelegate.mineralTint ||
+      showCenterGem != oldDelegate.showCenterGem;
 }

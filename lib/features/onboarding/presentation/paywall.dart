@@ -2,7 +2,8 @@ import '../../../common/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
 import '../../../common/widgets/app_button.dart';
-import '../../../common/widgets/responsive_canvas.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -79,195 +80,139 @@ class _PaywallState extends State<Paywall> {
   );
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final panelHeight = constraints.maxHeight * .55;
-      return Stack(
-        fit: StackFit.expand,
+  Widget build(BuildContext context) => MiningBackground(
+    child: SafeArea(
+      child: Column(
         children: [
-          const ColoredBox(color: AppColors.heroBackground),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: constraints.maxHeight * .63,
-            child: Image.asset(
-              'assets/images/adventurer.png',
-              fit: BoxFit.cover,
-              alignment: const Alignment(0, -.45),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 140,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [AppColors.heroScrim, AppColors.transparent],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  0,
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      tooltip: context.tr('Close paywall'),
-                      onPressed: _busy ? null : widget.onBack,
-                      icon: const Icon(
-                        Icons.close,
-                        color: AppColors.surface,
-                        size: 30,
-                      ),
-                    ),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        heightFactor: 1,
-                        child: TextButton(
-                          onPressed: _busy ? null : _restore,
-                          child: const AppText(
-                            'Restore Purchases',
-                            textAlign: TextAlign.end,
-                            style: AppTextStyles.onPrimaryPixelBody,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: panelHeight,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: AppRadii.sheet,
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.contentInset,
-                    AppSpacing.contentInset,
-                    AppSpacing.contentInset,
-                    AppSpacing.sm,
-                  ),
-                  child: ResponsiveCanvas(
-                    alignment: Alignment.topCenter,
-                    designSize: Size(352, _allPlans ? 465 : 430),
-                    child: LayoutBuilder(
-                      builder: (context, panel) => SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: panel.maxHeight,
-                          ),
-                          child: IntrinsicHeight(
-                            child: _allPlans ? _plans() : _offer(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    },
-  );
-
-  Widget _offer() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const AppText(
-        'Remove All Ads',
-        textAlign: TextAlign.center,
-        style: AppTextStyles.sectionTitle,
-      ),
-      const SizedBox(height: AppSpacing.xxxl),
-      Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            height: 60,
-            padding: AppInsets.contentHorizontal,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
               children: [
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: AppText(
-                      '₫129.000/week',
-                      style: AppTextStyles.onPrimaryPixelPrice,
-                    ),
-                  ),
+                IconButton(
+                  tooltip: context.tr('Close paywall'),
+                  onPressed: _busy ? null : widget.onBack,
+                  icon: const Icon(Icons.close, color: AppColors.onPrimary),
                 ),
-                SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: AppText(
-                      'Try it for free!',
-                      style: AppTextStyles.onPrimaryPixelSubtitle,
+                const Spacer(),
+                TextButton(
+                  onPressed: _busy ? null : _restore,
+                  child: AppText(
+                    'Restore Purchases',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.caveMuted,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          Positioned(top: -20, left: 88, right: 88, child: _trialBadge()),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  MiningPanel(
+                    color: AppColors.goldPanel,
+                    borderColor: AppColors.gold,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.workspace_premium,
+                          color: AppColors.gold,
+                          size: 54,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppText(
+                                'MINER PRO',
+                                style: AppTextStyles.pixelLabel.copyWith(
+                                  color: AppColors.gold,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              AppText(
+                                'Unlock Pro Tools',
+                                style: AppTextStyles.itemTitle.copyWith(
+                                  color: AppColors.onPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  MiningPanel(
+                    borderColor: AppColors.helpBorder,
+                    child: _allPlans ? _plans() : _offer(),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
-      const SizedBox(height: 17),
+    ),
+  );
+
+  Widget _offer() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      AppText(
+        'Remove All Ads',
+        textAlign: TextAlign.center,
+        style: AppTextStyles.sectionTitle.copyWith(
+          color: AppColors.gold,
+          fontSize: 26,
+        ),
+      ),
+      const SizedBox(height: 20),
+      _trialBadge(),
+      const SizedBox(height: 10),
+      MiningPanel(
+        color: AppColors.cavePanel,
+        borderColor: AppColors.accent,
+        child: Column(
+          children: [
+            const AppText(
+              '\u20ab129.000/week',
+              style: AppTextStyles.onPrimaryPixelPrice,
+            ),
+            const SizedBox(height: 7),
+            AppText(
+              'Try it for free!',
+              style: AppTextStyles.body.copyWith(color: AppColors.primary),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 20),
       ...[
         'Unlock all ore types',
         'Find unlimited ores',
         'Unlimited access to all in-app content',
         'No ads',
       ].map(_benefit),
-      const SizedBox(height: 11),
+      const SizedBox(height: 12),
       AppButton(
         label: _busy ? 'Please wait...' : 'Start Free Trial',
-        onPressed: _busy ? null : _purchase,
-        gradient: true,
+        backgroundColor: AppColors.gold,
         pixel: true,
+        onPressed: _busy ? null : _purchase,
       ),
-      const SizedBox(height: AppSpacing.xs),
+      const SizedBox(height: 10),
       const AppText(
-        '3 days free, then ₫129.000/week. Cancel anytime.',
+        '3 days free, then \u20ab129.000/week. Cancel anytime.',
         textAlign: TextAlign.center,
         style: AppTextStyles.caption,
       ),
-      const Spacer(),
+      const SizedBox(height: 10),
       TextButton(
         onPressed: () => setState(() => _allPlans = true),
         child: const AppText('View All Plans', style: AppTextStyles.link),
@@ -315,7 +260,7 @@ class _PaywallState extends State<Paywall> {
             ? 'Start Free Trial'
             : 'Continue',
         onPressed: _busy ? null : _purchase,
-        gradient: true,
+        backgroundColor: AppColors.gold,
         pixel: true,
       ),
       const SizedBox(height: 7),
@@ -328,7 +273,7 @@ class _PaywallState extends State<Paywall> {
         textAlign: TextAlign.center,
         style: AppTextStyles.caption,
       ),
-      const Spacer(),
+      const SizedBox(height: 12),
       Align(
         alignment: Alignment.center,
         child: TextButton(
@@ -370,7 +315,7 @@ class _PaywallState extends State<Paywall> {
       vertical: AppSpacing.xs,
     ),
     decoration: BoxDecoration(
-      color: AppColors.accent,
+      color: AppColors.cavePanel,
       borderRadius: AppRadii.small,
     ),
     child: const AppText(
@@ -389,97 +334,83 @@ class _PaywallState extends State<Paywall> {
     bool trial = false,
   }) {
     final selected = plan == _selected;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Semantics(
-          selected: selected,
-          button: true,
-          child: InkWell(
-            key: ValueKey('plan-${plan.name}'),
-            onTap: _busy ? null : () => setState(() => _selected = plan),
-            borderRadius: AppRadii.standard,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              height: 59,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.primary : AppColors.surface,
-                border: Border.all(color: AppColors.primary, width: 1.8),
-                borderRadius: AppRadii.standard,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected
-                          ? AppColors.surface
-                          : AppColors.transparent,
-                      border: Border.all(
-                        color: selected ? AppColors.surface : AppColors.primary,
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: MiningPanel(
+        color: selected ? AppColors.cavePanel : AppColors.cave,
+        borderColor: selected ? AppColors.gold : AppColors.helpBorder,
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          key: ValueKey('plan-${plan.name}'),
+          onTap: _busy ? null : () => setState(() => _selected = plan),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (trial) ...[
+                  Align(alignment: Alignment.centerLeft, child: _trialBadge()),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  children: [
+                    Icon(
+                      selected
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: selected ? AppColors.gold : AppColors.caveMuted,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 3,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          AppText(
+                            price,
+                            style: AppTextStyles.pixelPrice.copyWith(
+                              fontSize: 18,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          AppText(
+                            interval,
+                            style: AppTextStyles.body.copyWith(
+                              fontSize: 12,
+                              color: AppColors.caveMuted,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: selected
-                        ? const Icon(
-                            Icons.check_rounded,
-                            size: 14,
-                            color: AppColors.primary,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 10),
-                  AppText(
-                    price,
-                    style: AppTextStyles.pixelPrice.copyWith(
-                      color: selected ? AppColors.onPrimary : AppColors.text,
-                    ),
-                  ),
-                  AppText(
-                    interval,
-                    style: AppTextStyles.pixelLabel.copyWith(
-                      color: selected ? AppColors.onPrimary : AppColors.text,
-                    ),
-                  ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: AppText(
-                          perWeek,
-                          style: AppTextStyles.pixelLabel.copyWith(
-                            color: selected
-                                ? AppColors.onPrimary
-                                : AppColors.text,
-                          ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: AppText(
+                        perWeek,
+                        textAlign: TextAlign.end,
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 11,
+                          color: AppColors.caveMuted,
                         ),
                       ),
                     ),
+                  ],
+                ),
+                if (saving != null) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: MiningTag(saving, color: AppColors.gold),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
         ),
-        if (trial)
-          Positioned(top: -19, left: 88, right: 88, child: _trialBadge()),
-        if (saving != null)
-          Positioned(
-            bottom: -6,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: AppText(saving, style: AppTextStyles.badge),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

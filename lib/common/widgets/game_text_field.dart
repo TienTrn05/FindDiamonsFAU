@@ -13,19 +13,46 @@ class GameTextField extends StatelessWidget {
     this.numeric = false,
     this.validator,
     this.readOnly = false,
+    this.hintText,
+    this.labelStyle,
+    this.valueStyle,
+    this.decoration,
+    this.icon,
+    this.labelSpacing = AppSpacing.xs,
+    this.iconColor,
   });
   final String label;
   final TextEditingController controller;
   final bool numeric;
   final String? Function(String?)? validator;
   final bool readOnly;
+  final String? hintText;
+  final TextStyle? labelStyle;
+  final TextStyle? valueStyle;
+  final InputDecoration? decoration;
+  final IconData? icon;
+  final double labelSpacing;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      AppText(label, style: AppTextStyles.fieldLabel),
-      const SizedBox(height: AppSpacing.xs),
+      Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 18, color: iconColor ?? labelStyle?.color),
+            const SizedBox(width: 6),
+          ],
+          Expanded(
+            child: AppText(
+              label,
+              style: labelStyle ?? AppTextStyles.fieldLabel,
+            ),
+          ),
+        ],
+      ),
+      SizedBox(height: labelSpacing),
       TextFormField(
         onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         controller: controller,
@@ -33,7 +60,7 @@ class GameTextField extends StatelessWidget {
         autocorrect: !numeric,
         enableSuggestions: !numeric,
         inputFormatters: numeric ? const [SignedIntegerInputFormatter()] : null,
-        style: AppTextStyles.fieldValue,
+        style: valueStyle ?? AppTextStyles.fieldValue,
         keyboardType: numeric
             ? const TextInputType.numberWithOptions(signed: true)
             : TextInputType.text,
@@ -42,7 +69,9 @@ class GameTextField extends StatelessWidget {
           final error = validator?.call(value);
           return error == null ? null : context.tr(error);
         },
-        decoration: AppTheme.gameInputDecoration,
+        decoration: (decoration ?? AppTheme.gameInputDecoration).copyWith(
+          hintText: hintText == null ? null : context.tr(hintText!),
+        ),
       ),
     ],
   );

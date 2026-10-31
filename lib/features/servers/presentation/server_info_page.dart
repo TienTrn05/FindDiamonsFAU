@@ -1,3 +1,4 @@
+import '../../../common/widgets/game_back_button.dart';
 import '../../../common/widgets/app_text.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -9,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/widgets/ad_placements.dart';
 import '../../../common/widgets/app_page_frame.dart';
+import '../../../common/widgets/mining_surface.dart';
 import '../../../common/widgets/landscape_background.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -16,6 +18,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/server_catalog.dart';
 import 'server_banner.dart';
+import 'server_status.dart';
 import 'server_connection_dialog.dart';
 
 class ServerInfoPage extends StatefulWidget {
@@ -111,7 +114,7 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
     foregroundColor: AppColors.onPrimary,
     minimumSize: const Size(0, 50),
     side: BorderSide(color: border, width: 2),
-    shape: const RoundedRectangleBorder(),
+    shape: const PixelBorder(),
     padding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.md,
       vertical: AppSpacing.md,
@@ -125,22 +128,21 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
       key: const ValueKey('server-info-preview'),
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: AppColors.surface,
-          surfaceTintColor: AppColors.surface,
+          backgroundColor: AppColors.cave,
+          surfaceTintColor: AppColors.transparent,
           systemOverlayStyle: AppTheme.systemUi,
           centerTitle: true,
-          leadingWidth: 92,
-          leading: TextButton.icon(
-            key: const ValueKey('server-info-back'),
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.serverNavigation,
-              padding: EdgeInsets.zero,
+          toolbarHeight: 64,
+          leadingWidth: 72,
+          leading: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: GameBackButton(
+              key: const ValueKey('server-info-back'),
+              size: 48,
+              onPressed: () => Navigator.pop(context),
             ),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 24),
-            label: const AppText('Main', style: AppTextStyles.body),
           ),
-          title: const AppText('Server Info', style: AppTextStyles.serverTitle),
+          title: const AppText('Server Info', style: AppTextStyles.itemTitle),
         ),
         body: Stack(
           fit: StackFit.expand,
@@ -164,7 +166,7 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
                       child: LayoutBuilder(
                         builder: (context, constraints) => Padding(
                           padding: EdgeInsets.symmetric(
-                            horizontal: constraints.maxWidth * .14,
+                            horizontal: 18,
                             vertical: AppSpacing.lg,
                           ),
                           child: Column(
@@ -174,6 +176,33 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.serverInfoTitle,
                               ),
+                              const SizedBox(height: AppSpacing.sm),
+                              Center(
+                                child: ServerStatus(
+                                  server: server,
+                                  compact: false,
+                                ),
+                              ),
+                              if (server.version != null)
+                                AppText(
+                                  'Version: ${server.version}',
+                                  style: AppTextStyles.body.copyWith(
+                                    color: AppColors.caveMuted,
+                                  ),
+                                ),
+                              if (server.motd?.isNotEmpty == true)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: AppText(
+                                    server.motd!,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.caveMuted,
+                                    ),
+                                  ),
+                                ),
                               const SizedBox(height: AppSpacing.sm),
                               Wrap(
                                 alignment: WrapAlignment.center,
@@ -317,7 +346,7 @@ class _ServerInfoPageState extends State<ServerInfoPage> {
                           color: AppColors.oreRowBorder,
                           width: 3,
                         ),
-                        borderRadius: AppRadii.card,
+                        borderRadius: AppRadii.standard,
                       ),
                       child: AppText(
                         [

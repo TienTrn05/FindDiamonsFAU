@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../common/widgets/mining_surface.dart';
 
 import '../../../common/widgets/app_button.dart';
 import '../../../common/widgets/app_text.dart';
@@ -20,9 +21,8 @@ class OreStatusDialog extends StatelessWidget {
     backgroundColor: AppColors.oreRow,
     surfaceTintColor: AppColors.transparent,
     insetPadding: const EdgeInsets.all(AppSpacing.lg),
-    shape: const RoundedRectangleBorder(
-      borderRadius: AppRadii.standard,
-      side: BorderSide(color: AppColors.oreRowBorder, width: 3),
+    shape: const PixelBorder(
+      side: BorderSide(color: AppColors.helpBorder, width: 2),
     ),
     clipBehavior: Clip.antiAlias,
     child: ConstrainedBox(
@@ -100,7 +100,7 @@ class OreStatusDialog extends StatelessWidget {
                       child: AppButton(
                         key: const ValueKey('mark-ore-not-found'),
                         label: 'Not found',
-                        backgroundColor: AppColors.danger,
+                        backgroundColor: AppColors.helpRaised,
                         shadow: false,
                         textStyle: AppTextStyles.pixelBody,
                         onPressed: () => Navigator.pop(context, false),
