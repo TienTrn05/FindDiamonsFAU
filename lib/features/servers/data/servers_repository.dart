@@ -5,6 +5,11 @@ abstract interface class ServersRepository {
   Future<ServerCatalog> load();
 }
 
+abstract interface class RefreshableServersRepository
+    implements ServersRepository {
+  Future<ServerCatalog> refresh();
+}
+
 class JsonServersRepository implements ServersRepository {
   const JsonServersRepository({this.source = const JsonAssetSource()});
   final JsonAssetSource source;

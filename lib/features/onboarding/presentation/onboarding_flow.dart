@@ -7,6 +7,7 @@ import '../../../common/widgets/app_centered_scroll_view.dart';
 import '../../../common/widgets/app_loading_page.dart';
 import '../../../common/widgets/app_page_frame.dart';
 import '../../../common/widgets/ore_art.dart';
+import '../../../common/widgets/mining_surface.dart';
 import '../../../core/responsive/app_layout.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -143,7 +144,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   padding: AppInsets.cardContent,
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: AppRadii.card,
+                    borderRadius: AppRadii.standard,
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
@@ -178,7 +179,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     ),
   );
 
-  Widget _tutorial() => OreBackground(
+  Widget _tutorial() => MiningBackground(
     child: SafeArea(
       child: Column(
         children: [
@@ -192,7 +193,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                     ? TextButton(
                         style: TextButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.surface,
+                          foregroundColor: AppColors.cave,
                           minimumSize: const Size(58, 30),
                           padding: const EdgeInsets.symmetric(horizontal: 15),
                         ),
@@ -211,14 +212,14 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               child: Container(
                 decoration: BoxDecoration(
                   color: AppColors.card,
-                  borderRadius: AppRadii.card,
+                  borderRadius: AppRadii.standard,
                 ),
                 foregroundDecoration: BoxDecoration(
-                  borderRadius: AppRadii.card,
+                  borderRadius: AppRadii.standard,
                   border: Border.all(color: AppColors.cardBorder, width: 1.6),
                 ),
                 child: ClipRRect(
-                  borderRadius: AppRadii.cardInner,
+                  borderRadius: AppRadii.standard,
                   child: PageView(
                     controller: _pages,
                     onPageChanged: (value) => setState(() => _page = value),
@@ -239,7 +240,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               children: List.generate(
                 3,
                 (index) => Semantics(
-                  label: 'Step ${index + 1} of 3',
+                  label: context.tr(
+                    'Step {step} of {total}',
+                    args: {'step': '${index + 1}', 'total': '3'},
+                  ),
                   selected: index == _page,
                   child: InkResponse(
                     onTap: () => _pages.animateToPage(
@@ -248,15 +252,15 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                       curve: Curves.easeOut,
                     ),
                     child: SizedBox(
-                      width: 21,
+                      width: 42,
                       height: 40,
                       child: Center(
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          width: 10,
-                          height: 10,
+                          width: index == _page ? 28 : 8,
+                          height: 8,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(3),
                             color: index == _page
                                 ? AppColors.indicatorActive
                                 : AppColors.indicatorInactive,

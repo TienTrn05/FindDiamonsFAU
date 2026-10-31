@@ -1,10 +1,10 @@
 import '../../../common/widgets/app_text.dart';
+import '../../../core/network/app_image_cache.dart';
 import 'package:flutter/material.dart';
 import '../../../common/widgets/game_header.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../../common/widgets/ad_placements.dart';
 import '../../../core/monetization/app_monetization.dart';
-import '../../../core/responsive/app_layout.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -14,6 +14,9 @@ import '../data/api_maps_repository.dart';
 import '../data/maps_repository.dart';
 import '../models/map_catalog.dart';
 import 'map_details_page.dart';
+import 'seed_map_card.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
 
 class MapsPage extends StatefulWidget {
   const MapsPage({super.key, required this.onGoPro, this.repository});
@@ -115,259 +118,244 @@ class _MapsPageState extends State<MapsPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) => ResourceView<MapCatalog>(
-    controller: _bloc,
-    builder: (context, catalog) => NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        SliverToBoxAdapter(
-          child: GameHeader(
-            title: catalog.title,
-            contentHeight: AppLayout.gameHeaderHeight * .6,
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.sm,
+  Widget _mapCard(MapItem item, bool locked) => MiningPanel(
+    padding: EdgeInsets.zero,
+    child: InkWell(
+      key: ValueKey('map-${item.id}'),
+      onTap: () => _open(item),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AspectRatio(
+            aspectRatio: 1.9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                item.coverUrl == null
+                    ? Image.asset(item.cover, fit: BoxFit.cover)
+                    : Image(
+                        image: AppNetworkImage(item.coverUrl!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            Image.asset(item.cover, fit: BoxFit.cover),
+                      ),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppColors.transparent, AppColors.scrim],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 12,
+                  bottom: 12,
+                  child: MiningTag(
+                    item.category,
+                    icon: Icons.explore_outlined,
+                    color: AppColors.onPrimary,
+                  ),
+                ),
+                if (locked)
+                  const Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: Icon(Icons.lock, color: AppColors.gold, size: 23),
+                  ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Material(
+                    color: AppColors.cave.withValues(alpha: .8),
+                    shape: const PixelBorder(),
+                    child: IconButton(
+                      key: ValueKey('favourite-${item.id}'),
+                      tooltip: context.tr(
+                        _bloc.favourites.contains(item.id)
+                            ? 'Remove favourite'
+                            : 'Add favourite',
+                      ),
+                      onPressed: () => _bloc.toggleFavourite(item.id),
+                      icon: Icon(
+                        _bloc.favourites.contains(item.id)
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: AppColors.gold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: Row(
-              children: catalog.categories
-                  .map(
-                    (category) => Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.sm),
-                      child: OutlinedButton(
-                        key: ValueKey('category-$category'),
-                        style: AppTheme.categoryButton(
-                          selected: _bloc.category == category,
-                        ),
-                        onPressed: () => _bloc.selectCategory(category),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (category == 'Favourite') ...[
-                              const Icon(
-                                Icons.star_border,
-                                color: AppColors.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                            ],
-                            AppText(
-                              category,
-                              style: AppTextStyles.pixelBodyLarge,
-                            ),
-                          ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppText(
+                        item.name,
+                        style: AppTextStyles.itemTitle.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text,
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_outward,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                AppText(
+                  item.description,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.caveMuted,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-      body: CustomScrollView(
-        key: const PageStorageKey('maps-list'),
-        slivers: [
-          if (_bloc.category == 'Seeds')
-            SliverToBoxAdapter(child: _seedFilters()),
-          if (_bloc.visible.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                key: const ValueKey('empty-map-category'),
-                child: Padding(
-                  padding: AppInsets.screen,
-                  child: AppText(
-                    'there is no item in "${context.tr(_bloc.category)}"',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.pixelBodyLarge,
-                  ),
-                ),
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => ResourceView<MapCatalog>(
+    controller: _bloc,
+    builder: (context, catalog) => MiningBackground(
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: GameHeader(
+              title: catalog.title,
+              subtitle: 'Discover your next world.',
+              icon: Icons.public,
+              contentHeight: 90,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: SingleChildScrollView(
+              key: const ValueKey('map-category-bar'),
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.sm,
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.sm,
-                10,
-                AppSpacing.sm,
-                AppSpacing.md,
-              ),
-              sliver: SliverList.separated(
-                itemCount:
-                    _bloc.visible.length +
-                    (MonetizationScope.maybeOf(context)?.isPro == false &&
-                            MonetizationScope.maybeOf(
-                                  context,
-                                )?.adsRuntime.available ==
-                                true
-                        ? 1
-                        : 0),
-                separatorBuilder: (_, _) =>
-                    const SizedBox(height: AppSpacing.sm),
-                itemBuilder: (_, index) {
-                  final hasAd =
-                      MonetizationScope.maybeOf(context)?.isPro == false &&
-                      MonetizationScope.maybeOf(
-                            context,
-                          )?.adsRuntime.available ==
-                          true;
-                  final adIndex = _bloc.visible.length < 2
-                      ? _bloc.visible.length
-                      : 2;
-                  if (hasAd && index == adIndex) return const SpecialOfferAd();
-                  final item = _bloc
-                      .visible[hasAd && index > adIndex ? index - 1 : index];
-                  final locked = _bloc.isLocked(
-                    item,
-                    isPro: MonetizationScope.maybeOf(context)?.isPro ?? false,
-                  );
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 430;
-                      final imageWidth = (constraints.maxWidth * .32)
-                          .clamp(96.0, 170.0)
-                          .toDouble();
-                      final cardRadius = BorderRadius.circular(16);
-                      return Material(
-                        color: AppColors.surface,
-                        borderRadius: cardRadius,
-                        child: InkWell(
-                          key: ValueKey('map-${item.id}'),
-                          borderRadius: cardRadius,
-                          onTap: () => _open(item),
-                          child: Container(
-                            padding: EdgeInsets.all(compact ? 8 : 12),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: AppColors.primary,
-                                width: 2.5,
-                              ),
-                              borderRadius: cardRadius,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: imageWidth,
-                                  height: imageWidth * 1.12,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        item.coverUrl == null
-                                            ? Image.asset(
-                                                item.cover,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : Image.network(
-                                                item.coverUrl!,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, _, _) =>
-                                                    Image.asset(
-                                                      item.cover,
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                              ),
-                                        if (locked)
-                                          const ColoredBox(
-                                            color: AppColors.heroScrim,
-                                          ),
-                                        if (locked)
-                                          const Center(
-                                            child: Icon(
-                                              Icons.lock,
-                                              color: AppColors.lock,
-                                              size: 28,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
+              child: Row(
+                children: catalog.categories
+                    .map(
+                      (category) => Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.sm),
+                        child: OutlinedButton(
+                          key: ValueKey('category-$category'),
+                          style: AppTheme.categoryButton(
+                            selected: _bloc.category == category,
+                          ),
+                          onPressed: () => _bloc.selectCategory(category),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (category == 'Favourite') ...[
+                                const Icon(
+                                  Icons.star_border,
+                                  color: AppColors.primary,
+                                  size: 20,
                                 ),
-                                SizedBox(width: compact ? 10 : 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: AppText(
-                                              item.name,
-                                              style: AppTextStyles.itemTitle
-                                                  .copyWith(
-                                                    fontSize: compact ? 16 : 21,
-                                                    fontWeight: FontWeight.w700,
-                                                    height: 1.2,
-                                                  ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: 28,
-                                            height: 30,
-                                            child: IconButton(
-                                              key: ValueKey(
-                                                'favourite-${item.id}',
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              tooltip: context.tr(
-                                                _bloc.favourites.contains(
-                                                      item.id,
-                                                    )
-                                                    ? 'Remove favourite'
-                                                    : 'Add favourite',
-                                              ),
-                                              onPressed: () => _bloc
-                                                  .toggleFavourite(item.id),
-                                              iconSize: 20,
-                                              icon: Icon(
-                                                _bloc.favourites.contains(
-                                                      item.id,
-                                                    )
-                                                    ? Icons.star
-                                                    : Icons.star_border,
-                                                color: AppColors.primary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      SizedBox(height: compact ? 7 : 10),
-                                      AppText(
-                                        item.description,
-                                        style: AppTextStyles.pixelBody.copyWith(
-                                          fontSize: compact ? 13 : 17,
-                                          height: 1.3,
-                                        ),
-                                        maxLines: compact ? 4 : 5,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                const SizedBox(width: AppSpacing.xs),
                               ],
-                            ),
+                              AppText(
+                                category,
+                                style: AppTextStyles.pixelBodyLarge,
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  );
-                },
+                      ),
+                    )
+                    .toList(),
               ),
             ),
+          ),
         ],
+        body: CustomScrollView(
+          key: const PageStorageKey('maps-list'),
+          slivers: [
+            if (_bloc.category == 'Seeds')
+              SliverToBoxAdapter(child: _seedFilters()),
+            if (_bloc.visible.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  key: const ValueKey('empty-map-category'),
+                  child: Padding(
+                    padding: AppInsets.screen,
+                    child: AppText(
+                      'there is no item in "${context.tr(_bloc.category)}"',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.pixelBodyLarge,
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+                sliver: SliverList.separated(
+                  itemCount:
+                      _bloc.visible.length +
+                      (MonetizationScope.maybeOf(context)?.isPro == false &&
+                              MonetizationScope.maybeOf(
+                                    context,
+                                  )?.adsRuntime.available ==
+                                  true
+                          ? 1
+                          : 0),
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.sm),
+                  itemBuilder: (_, index) {
+                    final hasAd =
+                        MonetizationScope.maybeOf(context)?.isPro == false &&
+                        MonetizationScope.maybeOf(
+                              context,
+                            )?.adsRuntime.available ==
+                            true;
+                    final adIndex = _bloc.visible.length < 2
+                        ? _bloc.visible.length
+                        : 2;
+                    if (hasAd && index == adIndex) {
+                      return const SpecialOfferAd();
+                    }
+                    final item = _bloc
+                        .visible[hasAd && index > adIndex ? index - 1 : index];
+                    final locked = _bloc.isLocked(
+                      item,
+                      isPro: MonetizationScope.maybeOf(context)?.isPro ?? false,
+                    );
+                    if (_bloc.category == 'Seeds') {
+                      return SeedMapCard(
+                        item: item,
+                        favourite: _bloc.favourites.contains(item.id),
+                        selectedVersion: _bloc.seedVersion,
+                        onFavourite: () => _bloc.toggleFavourite(item.id),
+                      );
+                    }
+                    return _mapCard(item, locked);
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     ),
   );

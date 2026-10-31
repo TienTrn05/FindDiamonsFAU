@@ -31,6 +31,8 @@ class ServerItem {
     this.infoSource = '',
     this.bannerStyle = 'full',
     this.bannerUrl,
+    this.javaSupported,
+    this.bedrockSupported,
   }) : javaAddress = javaAddress ?? address;
   factory ServerItem.fromJson(Map<String, dynamic> json) => ServerItem(
     id: json['id'] as String,
@@ -73,10 +75,14 @@ class ServerItem {
     final connectionAddress = java
         ? rawJavaAddress ?? rawAddress
         : rawBedrockAddress ?? rawAddress;
-    final rawOnline = live?['online'];
+    final state = live ?? json;
+    final rawOnline = state['online'];
     final isOnline = rawOnline is bool ? rawOnline : null;
-    final playersOnline = live?['playersOnline'] as int?;
-    final playersMax = live?['playersMax'] as int?;
+    int? count(Object? value) => value is int && value >= 0 ? value : null;
+    final playersOnline = isOnline == true
+        ? count(state['playersOnline'])
+        : null;
+    final playersMax = isOnline == true ? count(state['playersMax']) : null;
     final rawBannerUrl = bannerUrl;
 
     return ServerItem(
@@ -96,11 +102,13 @@ class ServerItem {
       bedrockAddress: rawBedrockAddress,
       javaAddress: rawJavaAddress,
       isOnline: isOnline,
+      javaSupported: java || (rawJavaAddress?.isNotEmpty ?? false),
+      bedrockSupported: !java || (rawBedrockAddress?.isNotEmpty ?? false),
       playersOnline: playersOnline,
       playersMax: playersMax,
-      version: live?['version'] as String?,
-      motd: live?['motd'] as String?,
-      icon: live?['icon'] as String?,
+      version: state['version'] as String?,
+      motd: state['motd'] as String?,
+      icon: state['icon'] as String?,
       joinNote: json['joinNote'] as String? ?? '',
       infoSource: json['infoSource'] as String? ?? '',
       website: json['website'] as String? ?? 'https://example.com',
@@ -134,6 +142,26 @@ class ServerItem {
   final String infoSource;
   final String bannerStyle;
   final Uri? bannerUrl;
+  final bool? javaSupported;
+  final bool? bedrockSupported;
+  bool get supportsJava => javaSupported ?? edition.toLowerCase() == 'java';
+  bool get supportsBedrock =>
+      bedrockSupported ?? edition.toLowerCase() == 'bedrock';
+  bool? get availability =>
+      isOnline ??
+      switch (status) {
+        'online' => true,
+        'offline' => false,
+        _ => null,
+      };
+  int? get currentPlayers => availability == false
+      ? null
+      : playersOnline ??
+            (isOnline == null && status == 'online' ? online : null);
+  int? get maximumPlayers => availability == false
+      ? null
+      : playersMax ??
+            (isOnline == null && status == 'online' ? capacity : null);
   final String website;
   final String description;
   final String bannerLabel;
@@ -144,7 +172,12 @@ class ServerItem {
 }
 
 class ServerCatalog {
-  const ServerCatalog({required this.banner, required this.servers});
+  const ServerCatalog({
+    required this.banner,
+    required this.servers,
+    this.liveStatusAvailable = true,
+    this.fetchedAt,
+  });
   factory ServerCatalog.fromJson(Map<String, dynamic> json) => ServerCatalog(
     banner: displayServerBannerText(json['banner'], 'Minecraft servers'),
     servers: (json['servers'] as List)
@@ -153,6 +186,8 @@ class ServerCatalog {
   );
   final String banner;
   final List<ServerItem> servers;
+  final bool liveStatusAvailable;
+  final DateTime? fetchedAt;
 }
 
 String displayServerBannerText(Object? value, String fallback) {

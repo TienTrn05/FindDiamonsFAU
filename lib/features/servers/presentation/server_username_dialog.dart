@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../common/widgets/app_text.dart';
+import '../../../common/widgets/mining_surface.dart';
 
 import '../../../core/theme/app_colors.dart';
 
@@ -29,9 +31,8 @@ class _ServerUsernameDialogState extends State<ServerUsernameDialog> {
     elevation: 0,
     constraints: const BoxConstraints(maxWidth: 232),
     insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(11),
-      side: const BorderSide(color: AppColors.action, width: 6),
+    shape: const PixelBorder(
+      side: BorderSide(color: AppColors.primary, width: 2),
     ),
     clipBehavior: Clip.antiAlias,
     child: SizedBox(
@@ -45,7 +46,7 @@ class _ServerUsernameDialogState extends State<ServerUsernameDialog> {
             const FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(
+              child: AppText(
                 'Enter your Minecraft username',
                 style: TextStyle(
                   fontFamily: 'Roboto',
@@ -72,7 +73,7 @@ class _ServerUsernameDialogState extends State<ServerUsernameDialog> {
                 fontSize: 22,
                 color: AppColors.text,
               ),
-              cursorColor: const Color(0xFF3E75DD),
+              cursorColor: AppColors.primary,
               onSubmitted: (_) => FocusScope.of(context).unfocus(),
               decoration: InputDecoration(
                 isDense: true,
@@ -93,7 +94,7 @@ class _ServerUsernameDialogState extends State<ServerUsernameDialog> {
                     key: const ValueKey('server-username-cancel'),
                     onPressed: () => Navigator.pop(context),
                     style: _buttonStyle(AppColors.oreRow, AppColors.text),
-                    child: const Text('Cancel'),
+                    child: const AppText('Cancel'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -103,8 +104,11 @@ class _ServerUsernameDialogState extends State<ServerUsernameDialog> {
                     key: const ValueKey('server-username-save'),
                     onPressed: () =>
                         Navigator.pop(context, _controller.text.trim()),
-                    style: _buttonStyle(AppColors.danger, AppColors.onPrimary),
-                    child: const Text('OK'),
+                    style: _buttonStyle(
+                      AppColors.helpRaised,
+                      AppColors.onPrimary,
+                    ),
+                    child: const AppText('OK'),
                   ),
                 ),
               ],

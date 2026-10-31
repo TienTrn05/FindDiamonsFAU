@@ -8,6 +8,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:google_mobile_ads/src/ad_instance_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
@@ -28,10 +30,16 @@ import 'package:roblox/core/data/json_asset_source.dart';
 import 'package:roblox/core/localization/app_locale_controller.dart';
 import 'package:roblox/core/localization/app_translations.dart';
 import 'package:roblox/core/navigation/app_destination.dart';
+import 'package:roblox/core/navigation/app_page_transition.dart';
+import 'package:roblox/features/dashboard/presentation/dashboard_page.dart';
 import 'package:roblox/core/theme/app_text_styles.dart';
 import 'package:roblox/core/theme/app_theme.dart';
+import 'package:roblox/core/theme/mining_style.dart';
+import 'package:roblox/common/widgets/game_back_button.dart';
+import 'package:roblox/core/models/search_record.dart';
 import 'package:roblox/features/find/data/find_repository.dart';
 import 'package:roblox/features/find/presentation/find_page.dart';
+import 'package:roblox/features/find/presentation/ore_picker_page.dart';
 import 'package:roblox/features/find/models/find_catalog.dart';
 import 'package:roblox/features/digging/presentation/found_ores_page.dart';
 import 'package:roblox/features/history/data/history_repository.dart';
@@ -146,6 +154,7 @@ Future<void> _mount(
   AppLocaleController? languages,
   AppMonetization? monetization,
   AppRepositories? repositories,
+  AppDestination initialDestination = AppDestination.find,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -185,6 +194,7 @@ Future<void> _mount(
                 child: child!,
               ),
               home: AppShell(
+                initialDestination: initialDestination,
                 repositories: repositories ?? _repositories(),
                 monetization: access,
               ),
@@ -241,20 +251,16 @@ Future<void> _mapCategory(WidgetTester tester, String category) async {
 }
 
 Future<void> _openHelp(WidgetTester tester) async {
-  await tester.scrollUntilVisible(
-    find.byKey(const ValueKey('open-help')),
-    180,
-    scrollable: find.descendant(
-      of: find.byKey(const PageStorageKey('find-form')),
-      matching: find.byWidgetPredicate(
-        (widget) =>
-            widget is Scrollable && widget.axisDirection == AxisDirection.down,
-      ),
-    ),
-  );
+  await tester.ensureVisible(find.byKey(const ValueKey('open-help')));
   await tester.ensureVisible(find.byKey(const ValueKey('open-help')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('open-help')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openFaqs(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const ValueKey('help-faq')));
+  await tester.tap(find.byKey(const ValueKey('help-faq')));
   await tester.pumpAndSettle();
 }
 
@@ -269,6 +275,8 @@ Future<void> _capture(
       'assets/images/block_landscape.png',
       'assets/images/adventurer.png',
       'assets/images/warehouse.png',
+      'assets/images/help_cave.png',
+      'assets/images/dashboard_cave_v2.png',
       for (final flag in ['us', 'es', 'pt', 'tr', 'fr', 'de', 'id', 'vn'])
         'assets/images/flags/$flag.png',
     ]) {
@@ -306,6 +314,511 @@ Finder _field(String key) => find.descendant(
 );
 
 void main() {
+  testWidgets(
+    'Servers retains scroll position and cached cards across tab changes',
+    (tester) async {
+      await _mount(
+        tester,
+        size: const Size(390, 568),
+        initialDestination: AppDestination.servers,
+      );
+      final card = tester.element(find.byKey(const ValueKey('server-complex')));
+      final list = find.byKey(const PageStorageKey('server-list'));
+      final scrollable = find.descendant(
+        of: list,
+        matching: find.byType(Scrollable),
+      );
+      await tester.drag(list, const Offset(0, -650));
+      await tester.pumpAndSettle();
+      final position = tester
+          .state<ScrollableState>(scrollable)
+          .position
+          .pixels;
+      expect(position, greaterThan(0));
+      await _tab(tester, AppDestination.find);
+      await _tab(tester, AppDestination.servers);
+      expect(
+        tester.state<ScrollableState>(scrollable).position.pixels,
+        closeTo(position, .01),
+      );
+      expect(card.mounted, isTrue);
+      await tester.drag(list, const Offset(0, 650));
+      await tester.pumpAndSettle();
+      expect(
+        identical(
+          tester.element(find.byKey(const ValueKey('server-complex'))),
+          card,
+        ),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('reference History and Servers keep actions and shared Back', (
+    tester,
+  ) async {
+    final history = JsonHistoryRepository(
+      source: JsonAssetSource(bundle: _FixtureBundle()),
+      store: MemoryHistoryStore(),
+    );
+    const ores = [
+      ('diamond', 'Diamond'),
+      ('gold', 'Gold'),
+      ('redstone', 'Redstone'),
+      ('emerald', 'Emerald'),
+      ('netherite', 'Netherite'),
+      ('iron', 'Iron'),
+    ];
+    for (var i = 0; i < ores.length; i++) {
+      await history.add(
+        SearchRecord(
+          id: 'preview-${ores[i].$1}',
+          seed: '${123123321 + i * 100003}',
+          playerX: i * 120,
+          playerZ: i * -80,
+          version: '1.21 Java Edition',
+          oreId: ores[i].$1,
+          oreName: ores[i].$2,
+          positions: const [OrePosition(x: 12, y: -54, z: 30, count: 4)],
+          createdAt: DateTime.utc(
+            2026,
+            10,
+            31,
+            12,
+          ).subtract(Duration(minutes: i)),
+        ),
+      );
+    }
+    await _mount(
+      tester,
+      repositories: _repositories(history: history),
+      initialDestination: AppDestination.history,
+    );
+    await _capture(tester, '43-history-neon');
+    await tester.tap(find.byKey(const ValueKey('history-preview-diamond')));
+    await tester.pumpAndSettle();
+    expect(find.byType(GameBackButton), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('found-ores-back')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('history-delete-preview-diamond')),
+    );
+    await tester.pumpAndSettle();
+    expect((await history.load()).searches.length, 5);
+    await _tab(tester, AppDestination.servers);
+    await _capture(tester, '44-servers-neon');
+    await tester.tap(find.byKey(const ValueKey('server-complex')));
+    await tester.pumpAndSettle();
+    expect(find.byType(GameBackButton), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('server-info-back')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('server-username-header')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('server-username-input')),
+      'OreScout',
+    );
+    await tester.tap(find.byKey(const ValueKey('server-username-save')));
+    await tester.pumpAndSettle();
+    expect(
+      (await SharedPreferences.getInstance()).getString('minecraft_username'),
+      'OreScout',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  if (Platform.environment['CAPTURE_MOTION'] == 'true') {
+    testWidgets('capture scene motion preview', (tester) async {
+      await _mount(tester, initialDestination: AppDestination.dashboard);
+      await tester.runAsync(() async {
+        for (final asset in [
+          'assets/images/help_cave.png',
+          'assets/images/block_landscape.png',
+        ]) {
+          await precacheImage(
+            AssetImage(asset),
+            tester.element(find.byKey(_captureKey)),
+          );
+        }
+      });
+      await tester.pumpAndSettle();
+      Future<void> frame(int index) => tester.runAsync(() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(_captureKey),
+        );
+        final snapshot = await boundary.toImage(pixelRatio: 1);
+        final bytes = await snapshot.toByteData(format: ui.ImageByteFormat.png);
+        final directory = Directory('.dart_tool/scene-motion');
+        await directory.create(recursive: true);
+        await File(
+          '${directory.path}/${index.toString().padLeft(2, '0')}.png',
+        ).writeAsBytes(bytes!.buffer.asUint8List());
+        snapshot.dispose();
+      });
+      await frame(0);
+      var index = 1;
+      for (final destination in [
+        AppDestination.find,
+        AppDestination.dashboard,
+      ]) {
+        await tester.tap(find.byKey(ValueKey('nav-${destination.name}')));
+        await tester.pump();
+        for (var step = 0; step < 19; step++) {
+          await tester.pump(const Duration(milliseconds: 20));
+          await frame(index++);
+        }
+        await tester.pumpAndSettle();
+      }
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'horizontal depth transitions reverse and finish the last rapid tap',
+    (tester) async {
+      await _mount(tester, initialDestination: AppDestination.dashboard);
+      final home = find.byType(DashboardPage);
+      final findPage = find.byType(FindPage);
+      final left = tester.getTopLeft(home).dx;
+      await tester.tap(find.byKey(const ValueKey('nav-find')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 210));
+      expect(tester.getTopLeft(home).dx, lessThan(left));
+      expect(tester.getTopLeft(findPage).dx, greaterThan(left));
+      expect(tester.getRect(home).overlaps(tester.getRect(findPage)), isTrue);
+      expect(
+        (tester.getTopLeft(findPage).dx - left).abs(),
+        lessThan(390 * .25),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_field('world-seed'), 'horizontal-state');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.tap(find.byKey(const ValueKey('nav-dashboard')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 210));
+      expect(tester.getTopLeft(home).dx, lessThan(left));
+      expect(tester.getTopLeft(findPage).dx, greaterThan(left));
+      expect(tester.getRect(home).overlaps(tester.getRect(findPage)), isTrue);
+      expect(
+        (tester.getTopLeft(findPage).dx - left).abs(),
+        lessThan(390 * .25),
+      );
+      await tester.tap(find.byKey(const ValueKey('nav-maps')));
+      await tester.tap(find.byKey(const ValueKey('nav-find')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<AppTabTransition>(find.byType(AppTabTransition)).index,
+        AppDestination.find.index,
+      );
+      expect(
+        tester.widget<TextFormField>(_field('world-seed')).controller!.text,
+        'horizontal-state',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('routes enter from the right and leave to the right on Back', (
+    tester,
+  ) async {
+    await _mount(tester);
+    final left = tester.getTopLeft(find.byType(FindPage)).dx;
+    await tester.tap(find.byKey(const ValueKey('change-ore')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 210));
+    expect(tester.getTopLeft(find.byType(OrePickerPage)).dx, greaterThan(left));
+    expect(tester.getTopLeft(find.byType(FindPage)).dx, lessThan(left));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 210));
+    expect(tester.getTopLeft(find.byType(OrePickerPage)).dx, greaterThan(left));
+    expect(tester.getTopLeft(find.byType(FindPage)).dx, lessThan(left));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byType(FindPage)).dx, closeTo(left, .01));
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final size in [
+    const Size(390, 844),
+    const Size(320, 568),
+    const Size(520, 900),
+  ]) {
+    testWidgets(
+      'Dashboard reference header fits artwork and corner Settings at $size',
+      (tester) async {
+        await _mount(
+          tester,
+          size: size,
+          initialDestination: AppDestination.dashboard,
+        );
+        final header = tester.getRect(
+          find.byKey(const ValueKey('dashboard-header')),
+        );
+        final brand = tester.getRect(
+          find.byKey(const ValueKey('dashboard-wordmark')),
+        );
+        final caption = tester.getRect(find.text('FIND ORES. EXPLORE MORE.'));
+        final settings = tester.getRect(
+          find.byKey(const ValueKey('dashboard-settings')),
+        );
+        expect(brand.left, greaterThanOrEqualTo(header.left + 8));
+        expect(brand.right, lessThan(header.right));
+        expect(caption.left, greaterThanOrEqualTo(brand.left));
+        expect(settings.right, closeTo(header.right - 10, .01));
+        expect(settings.top, closeTo(header.top + 10, .01));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('shared page motion respects system Reduce Motion', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _mount(tester);
+    await tester.tap(find.byKey(const ValueKey('nav-dashboard')));
+    await tester.pump();
+    final motion = find.byType(AppPageTransition).last;
+    expect(tester.widget<AppPageTransition>(motion).animation.value, 1);
+    expect(
+      find.descendant(of: motion, matching: find.byType(SlideTransition)),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final scenario in [
+    (const Size(320, 568), 1.0, 50),
+    (const Size(390, 844), 1.0, 90),
+    (const Size(844, 390), 1.0, 50),
+    (const Size(320, 568), 1.5, 90),
+  ]) {
+    testWidgets(
+      'mining screens never scroll with loaded ads ${scenario.$1} ${scenario.$2}',
+      (tester) async {
+        final channel = instanceManager.channel;
+        final calls = <MethodCall>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          (call) async {
+            calls.add(call);
+            if (call.method == 'MobileAds#initialize') {
+              return InitializationStatus({});
+            }
+            if (call.method == 'AdSize#getLargeAnchoredAdaptiveBannerAdSize') {
+              return scenario.$3;
+            }
+            return null;
+          },
+        );
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform_views,
+          (call) async {
+            if (call.method == 'create') return 0;
+            if (call.method == 'resize') {
+              return {
+                'width': call.arguments['width'],
+                'height': call.arguments['height'],
+              };
+            }
+            return null;
+          },
+        );
+        addTearDown(() {
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            null,
+          );
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform_views,
+            null,
+          );
+        });
+        final access = AppMonetization(rewardedAds: _RewardedAds());
+        addTearDown(access.dispose);
+        tester.view.padding = FakeViewPadding(top: 24, bottom: 20);
+        addTearDown(tester.view.resetPadding);
+        await _mount(
+          tester,
+          size: scenario.$1,
+          textScale: scenario.$2,
+          monetization: access,
+          initialDestination: AppDestination.dashboard,
+        );
+        final frame = find.byKey(const ValueKey('bottom-ad-frame'));
+        final initialFrame = tester.getRect(frame);
+        final beforeAd = tester.getRect(
+          find.byKey(const ValueKey('dashboard-find')),
+        );
+        expect(initialFrame.height, scenario.$3 + 16);
+        final adId = calls
+            .singleWhere((call) => call.method == 'loadBannerAd')
+            .arguments['adId'];
+        final handled = Completer<void>();
+        tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+          channel.name,
+          channel.codec.encodeMethodCall(
+            MethodCall('onAdEvent', {'adId': adId, 'eventName': 'onAdLoaded'}),
+          ),
+          (_) => handled.complete(),
+        );
+        await handled.future;
+        await tester.pumpAndSettle();
+        final banner = find.byKey(const ValueKey('bottom-ad-banner'));
+        expect(banner, findsOneWidget);
+        expect(tester.getRect(frame), initialFrame);
+        expect(
+          tester.getRect(find.byKey(const ValueKey('dashboard-find'))),
+          beforeAd,
+          reason: 'Loading an ad preserves the free layout',
+        );
+
+        final freeRects = <String, Rect>{};
+        for (final pro in [false, true]) {
+          access.updateEntitlement(pro);
+          await tester.pumpAndSettle();
+          expect(tester.getRect(frame), initialFrame);
+          if (pro) {
+            expect(banner, findsNothing);
+            expect(find.byKey(const ValueKey('dashboard-pro')), findsNothing);
+            expect(find.byKey(const ValueKey('open-premium')), findsNothing);
+          }
+          for (final destination in [
+            AppDestination.dashboard,
+            AppDestination.find,
+          ]) {
+            await _tab(tester, destination);
+            final page = find.byType(
+              destination == AppDestination.dashboard
+                  ? DashboardPage
+                  : FindPage,
+            );
+            expect(
+              find.descendant(
+                of: page,
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Scrollable &&
+                      widget.axisDirection == AxisDirection.down,
+                ),
+              ),
+              findsNothing,
+            );
+            final keys = destination == AppDestination.dashboard
+                ? [
+                    'dashboard-find',
+                    'dashboard-history',
+                    'dashboard-skins',
+                    'dashboard-servers',
+                    'dashboard-maps',
+                    if (!pro) 'dashboard-pro',
+                  ]
+                : [
+                    'player-x',
+                    'player-z',
+                    'world-seed',
+                    'game-version',
+                    'change-ore',
+                    'start-digging',
+                    'open-help',
+                    if (!pro) 'open-premium',
+                  ];
+            final bottom = tester.getTopLeft(frame).dy;
+            for (final key in keys) {
+              final item = find.byKey(ValueKey(key));
+              final rect = tester.getRect(item);
+              if (pro) {
+                expect(
+                  rect,
+                  freeRects[key],
+                  reason: '$key keeps the free layout when Pro is enabled',
+                );
+              } else {
+                freeRects[key] = rect;
+              }
+              expect(
+                item.hitTestable(),
+                findsOneWidget,
+                reason: '$key is visible without scrolling',
+              );
+              expect(
+                tester.getRect(item).bottom,
+                lessThanOrEqualTo(bottom + 1),
+                reason: '$key stays above ads/navigation',
+              );
+            }
+            expect(tester.takeException(), isNull);
+            if (scenario.$1 == const Size(390, 844) && !pro) {
+              await _capture(
+                tester,
+                destination == AppDestination.dashboard
+                    ? '37-dashboard-ad'
+                    : '38-digging-ad',
+              );
+            }
+            if (scenario.$1 == const Size(320, 568) &&
+                scenario.$2 == 1 &&
+                !pro) {
+              await _capture(
+                tester,
+                destination == AppDestination.dashboard
+                    ? '39-dashboard-compact-ad'
+                    : '40-digging-compact-ad',
+              );
+            }
+            if (destination == AppDestination.find && pro) {
+              await tester.tap(find.byKey(const ValueKey('start-digging')));
+              await tester.pumpAndSettle();
+              expect(find.text('Enter a whole number'), findsNWidgets(2));
+              expect(tester.takeException(), isNull);
+            }
+          }
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
+  testWidgets(
+    'tab and route transitions share motion and preserve the Find form',
+    (tester) async {
+      await _mount(tester);
+      await tester.enterText(_field('world-seed'), 'motion-seed');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.tap(find.byKey(const ValueKey('nav-dashboard')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      final tabMotion = tester.widget<AppPageTransition>(
+        find.byType(AppPageTransition).last,
+      );
+      expect(tabMotion.animation.value, inExclusiveRange(0, 1));
+      await tester.pumpAndSettle();
+      await _tab(tester, AppDestination.find);
+      expect(
+        tester.widget<TextFormField>(_field('world-seed')).controller!.text,
+        'motion-seed',
+      );
+      await tester.tap(find.byKey(const ValueKey('change-ore')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(find.byType(AppPageTransition), findsAtLeastNWidgets(2));
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextFormField>(_field('world-seed')).controller!.text,
+        'motion-seed',
+      );
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('launch ad starts on splash and content waits until it closes', (
@@ -366,6 +879,108 @@ void main() {
     }
   });
 
+  testWidgets(
+    'Dashboard opens features and Change commits or cancels ore selection',
+    (tester) async {
+      await _mount(tester, initialDestination: AppDestination.dashboard);
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
+      await _capture(tester, '30-dashboard');
+      await tester.tap(find.byKey(const ValueKey('dashboard-find')));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('player-x'), '-120');
+      await tester.enterText(_field('player-z'), '450');
+      await tester.enterText(_field('world-seed'), 'myworld');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      await _capture(tester, '31-find-redesign');
+      await tester.ensureVisible(find.byKey(const ValueKey('change-ore')));
+      await tester.tap(find.byKey(const ValueKey('change-ore')));
+      await tester.pumpAndSettle();
+      await _capture(tester, '32-ore-picker');
+      await tester.tap(find.byTooltip('Next ore'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ore-picker-back')));
+      await tester.pumpAndSettle();
+      expect(find.text('Diamond'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('change-ore')));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const ValueKey('ore-carousel')),
+        const Offset(-280, 0),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('confirm-ore')));
+      await tester.tap(find.byKey(const ValueKey('confirm-ore')));
+      await tester.pumpAndSettle();
+      expect(find.text('Copper'), findsOneWidget);
+      await _tab(tester, AppDestination.dashboard);
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('dashboard-history')),
+      );
+      await tester.tap(find.byKey(const ValueKey('dashboard-history')));
+      await tester.pumpAndSettle();
+      expect(find.text('No searches made yet!'), findsOneWidget);
+      await _tab(tester, AppDestination.find);
+      expect(
+        tester.widget<TextFormField>(_field('world-seed')).controller!.text,
+        'myworld',
+      );
+      expect(
+        tester.widget<TextFormField>(_field('player-x')).controller!.text,
+        '-120',
+      );
+      expect(find.text('Copper'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('start-digging')));
+      await tester.tap(find.byKey(const ValueKey('start-digging')));
+      await tester.pump(const Duration(milliseconds: 1100));
+      await tester.pumpAndSettle();
+      final results = tester.widget<FoundOresPage>(find.byType(FoundOresPage));
+      expect(results.record.oreId, 'copper');
+      expect(results.record.seed, 'myworld');
+      await tester.tap(find.byKey(const ValueKey('found-ores-back')));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final scenario in [
+    (const Size(320, 568), 1.5),
+    (const Size(844, 390), 1.0),
+  ]) {
+    testWidgets('ore picker fits ${scenario.$1} at ${scenario.$2}', (
+      tester,
+    ) async {
+      await _mount(tester, size: scenario.$1, textScale: scenario.$2);
+      await tester.ensureVisible(find.byKey(const ValueKey('change-ore')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('change-ore')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Previous ore'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('confirm-ore')));
+      await tester.tap(find.byKey(const ValueKey('confirm-ore')));
+      await tester.pumpAndSettle();
+      expect(find.text('Emerald'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('small Find form validates every field without scrolling', (
+    tester,
+  ) async {
+    await _mount(tester, size: const Size(320, 568), textScale: 1.5);
+    await tester.ensureVisible(find.byKey(const ValueKey('start-digging')));
+    await tester.tap(find.byKey(const ValueKey('start-digging')));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a whole number'), findsNWidgets(2));
+    expect(find.text('Enter your world seed'), findsOneWidget);
+    expect(find.byType(FoundOresPage), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Find dismisses touch focus outside all three inputs', (
     tester,
   ) async {
@@ -378,10 +993,9 @@ void main() {
         find.descendant(of: _field(key), matching: find.byType(EditableText)),
       );
       expect(editable.focusNode.hasFocus, isTrue);
-      await tester.tap(
-        find.text('Find Diamonds!'),
-        kind: ui.PointerDeviceKind.touch,
-      );
+      await tester.ensureVisible(find.text('Find Ore'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Find Ore'), kind: ui.PointerDeviceKind.touch);
       await tester.pumpAndSettle();
       expect(editable.focusNode.hasFocus, isFalse);
       expect(editable.controller.text, '123');
@@ -415,7 +1029,7 @@ void main() {
       await tester.tap(help);
       await tester.pumpAndSettle();
       expect(find.byType(HelpPage), findsOneWidget);
-      await tester.pageBack();
+      await tester.tap(find.byKey(const ValueKey('game-header-back')));
       await tester.pumpAndSettle();
       access.updateEntitlement(false);
       await tester.pumpAndSettle();
@@ -532,7 +1146,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('help-restore')));
       await tester.pumpAndSettle();
       expect(access.isPro, isTrue);
-      await tester.pageBack();
+      await tester.tap(find.byKey(const ValueKey('game-header-back')));
       await tester.pumpAndSettle();
       expect(pro, findsNothing);
 
@@ -562,9 +1176,14 @@ void main() {
     for (final font in [
       (AppFonts.body, 'assets/fonts/Monocraft-Regular.ttf'),
       ('Roboto', 'assets/fonts/Roboto-Regular.ttf'),
+      ('PixelifySans', 'assets/fonts/PixelifySans.ttf'),
       ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
     ]) {
-      await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
+      final loader = FontLoader(font.$1)..addFont(rootBundle.load(font.$2));
+      if (font.$1 == AppFonts.body) {
+        loader.addFont(rootBundle.load('assets/fonts/Monocraft-Bold.ttf'));
+      }
+      await loader.load();
     }
     for (final feature in [
       'find',
@@ -633,7 +1252,7 @@ void main() {
     tester,
   ) async {
     await _mount(tester);
-    expect(find.text('Find Diamonds!'), findsOneWidget);
+    expect(find.text('Find Ore'), findsOneWidget);
     await _capture(tester, '08-find');
     await _tab(tester, AppDestination.history);
     expect(find.text('No searches made yet!'), findsOneWidget);
@@ -650,6 +1269,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Help searches FAQ content, clears results and expands one answer',
+    (tester) async {
+      await _mount(tester);
+      await _openHelp(tester);
+      await _openFaqs(tester);
+      final search = find.byKey(const ValueKey('help-faq-search'));
+      await tester.enterText(search, 'password');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('help-faq-safety')), findsOneWidget);
+      expect(find.byKey(const ValueKey('help-faq-position')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('help-faq-safety')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('does not change your world'), findsOneWidget);
+      await tester.enterText(search, 'no-such-question');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('No matching questions. Try another search.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('help-faq-versions')),
+      );
+      await tester.tap(find.byKey(const ValueKey('help-faq-versions')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('does not change your world'), findsNothing);
+      expect(find.textContaining('Java versions available'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Help opens FAQ, language choices, policy and tutorial review', (
     tester,
   ) async {
@@ -659,6 +1311,7 @@ void main() {
     await _openHelp(tester);
     expect(find.byType(HelpPage), findsOneWidget);
     await _capture(tester, '14-help');
+    await _capture(tester, '33-help-overview');
     final header = find.text('Help!');
     final headerPosition = tester.getTopLeft(header);
 
@@ -670,10 +1323,13 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('help-language')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
     await _capture(tester, '18-help-languages');
+    await _capture(tester, '34-help-languages');
     await tester.ensureVisible(find.byKey(const ValueKey('help-language-vi')));
     await tester.tap(find.byKey(const ValueKey('help-language-vi')));
     await tester.pumpAndSettle();
@@ -688,9 +1344,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('help-language-en')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
+    await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('help-language')));
     await tester.pumpAndSettle();
 
+    await _openFaqs(tester);
     final position = find.byKey(const ValueKey('help-faq-position'));
     await tester.ensureVisible(position);
     await tester.tap(position);
@@ -698,6 +1357,7 @@ void main() {
     expect(find.textContaining('Show Coordinates'), findsOneWidget);
     expect(tester.getTopLeft(header), headerPosition);
     await _capture(tester, '15-help-position');
+    await _capture(tester, '35-help-faq');
     final seed = find.byKey(const ValueKey('help-faq-seed'));
     await tester.ensureVisible(seed);
     await tester.tap(seed);
@@ -712,6 +1372,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(HelpPolicyDialog), findsOneWidget);
     await _capture(tester, '17-help-policy');
+    await _capture(tester, '36-help-policy');
     final ok = find.byKey(const ValueKey('help-policy-ok'));
     final okPosition = tester.getTopLeft(ok);
     await tester.drag(
@@ -759,6 +1420,8 @@ void main() {
       await tester.enterText(_field('world-seed'), 'my-world-123');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await _openHelp(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('help-language')));
       await tester.pumpAndSettle();
       await tester.ensureVisible(
@@ -771,13 +1434,14 @@ void main() {
       expect(find.text('Aide !'), findsOneWidget);
       expect(
         find.image(const AssetImage('assets/images/flags/fr.png')),
-        findsOneWidget,
+        findsNWidgets(2),
       );
       await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
       await _capture(tester, '19-help-french-${platform.name}');
       await tester.tap(find.byKey(const ValueKey('game-header-back')));
       await tester.pumpAndSettle();
-      expect(find.text('Trouvez des diamants !'), findsOneWidget);
+      await tester.ensureVisible(find.text('Trouver du minerai'));
+      expect(find.text('Trouver du minerai'), findsOneWidget);
       expect(
         tester.widget<TextFormField>(_field('world-seed')).controller!.text,
         'my-world-123',
@@ -805,7 +1469,7 @@ void main() {
       );
       await tester.pump(_startupDuration);
       await tester.pumpAndSettle();
-      expect(find.text('Trouvez des diamants !'), findsOneWidget);
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
       final context = tester.element(find.byType(AppShell));
       expect(Localizations.localeOf(context).languageCode, 'fr');
       expect(tester.takeException(), isNull);
@@ -823,18 +1487,7 @@ void main() {
         await tester.pumpAndSettle();
         final translations = await AppTranslations.load(locale);
         final premium = find.byKey(const ValueKey('open-premium'));
-        await tester.scrollUntilVisible(
-          premium,
-          180,
-          scrollable: find.descendant(
-            of: find.byKey(const PageStorageKey('find-form')),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  widget is Scrollable &&
-                  widget.axisDirection == AxisDirection.down,
-            ),
-          ),
-        );
+        await tester.ensureVisible(premium);
         await tester.ensureVisible(premium);
         await Scrollable.ensureVisible(tester.element(premium), alignment: .5);
         await tester.pumpAndSettle();
@@ -850,6 +1503,8 @@ void main() {
         await tester.tap(find.byTooltip(translations.trans('Close paywall')));
         await tester.pumpAndSettle();
         await _openHelp(tester);
+        await tester.ensureVisible(find.byKey(const ValueKey('help-language')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('help-language')));
         await tester.pumpAndSettle();
         await tester.ensureVisible(
@@ -870,20 +1525,11 @@ void main() {
         'World seed (numbers/letters)',
         'Version (Scroll to change)',
       ]) {
-        await tester.scrollUntilVisible(
-          find.text(label),
-          120,
-          scrollable: find.descendant(
-            of: find.byKey(const PageStorageKey('find-form')),
-            matching: find.byWidgetPredicate(
-              (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
-            ),
-          ),
-        );
+        await tester.ensureVisible(find.text(label));
         final text = tester.widget<Text>(find.text(label));
-        expect(text.style!.fontSize, 24);
+        expect(text.style!.fontSize, MiningStyle.label.fontSize);
         expect(text.style!.fontWeight, FontWeight.w700);
-        expect(text.style!.color, AppColors.text);
+        expect(text.style!.color, MiningStyle.ink);
       }
       for (final key in ['player-x', 'player-z']) {
         final field = _field(key);
@@ -975,7 +1621,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('ore-results-help')));
     await tester.pumpAndSettle();
     expect(find.byType(HelpPage), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byKey(const ValueKey('game-header-back')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('found-ores-back')));
     await tester.pumpAndSettle();
@@ -995,7 +1641,12 @@ void main() {
       tester.widget<TextFormField>(_field('world-seed')).controller!.text,
       'sample-world',
     );
+    await tester.ensureVisible(find.byKey(const ValueKey('change-ore')));
+    await tester.tap(find.byKey(const ValueKey('change-ore')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Next ore'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirm-ore')));
     await tester.pumpAndSettle();
     expect(find.text('Copper'), findsOneWidget);
     await _tab(tester, AppDestination.history);
@@ -2290,7 +2941,7 @@ void main() {
   );
 
   testWidgets(
-    'onboarding completion enters Find and named routes open each tab',
+    'onboarding completion enters Dashboard and named routes open each tab',
     (tester) async {
       await tester.pumpWidget(
         MyApp(repositories: _repositories(), monetization: _testAccess()),
@@ -2303,7 +2954,7 @@ void main() {
       await tester.tap(find.byTooltip('Close paywall'));
       await tester.pumpAndSettle();
       expect(find.byType(AppShell), findsOneWidget);
-      expect(find.text('Find Diamonds!'), findsOneWidget);
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
       final navigator = tester.state<NavigatorState>(find.byType(Navigator));
       navigator.pushNamed('/servers');
       await tester.pumpAndSettle();
@@ -2316,7 +2967,7 @@ void main() {
     'system Back on paywall',
     'system Back on tutorial',
   ]) {
-    testWidgets('$exit enters Find and skips onboarding after restart', (
+    testWidgets('$exit enters Dashboard and skips onboarding after restart', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -2336,7 +2987,7 @@ void main() {
         await tester.tap(find.byTooltip(exit));
       }
       await tester.pumpAndSettle();
-      expect(find.text('Find Diamonds!'), findsOneWidget);
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
       expect(find.byType(OnboardingFlow), findsNothing);
       final preferences = await SharedPreferences.getInstance();
       expect(preferences.getBool(OnboardingPreferences.completedKey), isTrue);
@@ -2350,7 +3001,7 @@ void main() {
       expect(find.byType(AppLoadingPage), findsOneWidget);
       await tester.pump(_startupDuration);
       await tester.pumpAndSettle();
-      expect(find.text('Find Diamonds!'), findsOneWidget);
+      expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
       expect(find.byType(OnboardingFlow), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -2376,7 +3027,7 @@ void main() {
     );
     await tester.pump(_startupDuration);
     await tester.pumpAndSettle();
-    expect(find.text('Find Diamonds!'), findsOneWidget);
+    expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
     expect(find.byType(OnboardingFlow), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -2392,7 +3043,7 @@ void main() {
     );
     await tester.pump(_startupDuration);
     await tester.pumpAndSettle();
-    expect(find.text('Find Diamonds!'), findsOneWidget);
+    expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
     expect(find.byType(OnboardingFlow), findsNothing);
   });
 
@@ -2408,7 +3059,7 @@ void main() {
     );
     await tester.pump(_startupDuration);
     await tester.pumpAndSettle();
-    expect(find.text('Find Diamonds!'), findsOneWidget);
+    expect(find.byKey(const ValueKey('dashboard-wordmark')), findsOneWidget);
     final preferences = await SharedPreferences.getInstance();
     expect(preferences.getBool(OnboardingPreferences.seenKey), isNull);
     expect(preferences.getBool(OnboardingPreferences.completedKey), isNull);
@@ -2432,7 +3083,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(AppLoadingPage), findsNothing);
       if (returningUser) {
-        expect(find.text('Find Diamonds!'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('dashboard-wordmark')),
+          findsOneWidget,
+        );
         expect(find.byType(OnboardingFlow), findsNothing);
       } else {
         expect(find.text('Step 1'), findsOneWidget);
@@ -2466,6 +3120,7 @@ void main() {
       expect(find.byKey(const ValueKey('server-complex')), findsOneWidget);
       await _tab(tester, AppDestination.find);
       await _openHelp(tester);
+      await _openFaqs(tester);
       await tester.ensureVisible(
         find.byKey(const ValueKey('help-faq-position')),
       );

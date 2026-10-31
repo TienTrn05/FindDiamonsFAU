@@ -1,7 +1,11 @@
+import '../../../core/network/app_image_cache.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
 
 import '../../../common/widgets/app_button.dart';
 import '../../../common/widgets/app_page_frame.dart';
@@ -144,73 +148,138 @@ class _MapDetailsPageState extends State<MapDetailsPage> {
       final favourite = widget.bloc.favourites.contains(item.id);
       return AppPageFrame(
         child: Scaffold(
-          body: Column(
-            children: [
-              GameHeader(
-                title: item.name,
-                contentHeight: AppLayout.gameHeaderHeight * .5,
-                onBack: () => Navigator.pop(context),
-                trailing: IconButton(
-                  key: const ValueKey('map-detail-favourite'),
-                  tooltip: context.tr(
-                    favourite ? 'Remove favourite' : 'Add favourite',
-                  ),
-                  onPressed: () => widget.bloc.toggleFavourite(item.id),
-                  icon: Icon(
-                    favourite ? Icons.favorite : Icons.favorite_border,
-                    color: AppColors.onPrimary,
-                    size: 30,
+          body: MiningBackground(
+            child: Column(
+              children: [
+                GameHeader(
+                  title: item.name,
+                  contentHeight: AppLayout.gameHeaderHeight * .5,
+                  onBack: () => Navigator.pop(context),
+                  trailing: IconButton(
+                    key: const ValueKey('map-detail-favourite'),
+                    tooltip: context.tr(
+                      favourite ? 'Remove favourite' : 'Add favourite',
+                    ),
+                    onPressed: () => widget.bloc.toggleFavourite(item.id),
+                    icon: Icon(
+                      favourite ? Icons.favorite : Icons.favorite_border,
+                      color: AppColors.onPrimary,
+                      size: 30,
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListView(
-                  key: const PageStorageKey('map-details'),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  children: [
-                    _WorldGallery(item: item),
-                    if (item.subtitle.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: AppText(
-                          item.subtitle,
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.itemTitle,
-                        ),
-                      ),
-                    for (final detail in item.details)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.sm,
-                          AppSpacing.md,
-                          AppSpacing.sm,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 14,
-                                color: AppColors.primary,
-                              ),
+                Expanded(
+                  child: ListView(
+                    key: const PageStorageKey('map-details'),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                    children: [
+                      _WorldGallery(item: item),
+                      if (item.edition.isNotEmpty ||
+                          item.versions.isNotEmpty ||
+                          item.seed != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                          child: MiningPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    if (item.edition.isNotEmpty)
+                                      MiningTag(
+                                        item.edition,
+                                        icon: Icons.sports_esports_outlined,
+                                      ),
+                                    for (final version in item.versions)
+                                      MiningTag(version),
+                                  ],
+                                ),
+                                if (item.seed != null) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: AppText(
+                                          'Seed: ${item.seed}',
+                                          style: AppTextStyles.fieldValue,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: context.tr('Copy seed'),
+                                        onPressed: () async {
+                                          await Clipboard.setData(
+                                            ClipboardData(text: item.seed!),
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: AppText('Seed copied'),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(
+                                          Icons.copy,
+                                          color: AppColors.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: AppText(
-                                detail,
-                                style: AppTextStyles.pixelBodyLarge,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                  ],
+                      if (item.subtitle.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppText(
+                            item.subtitle,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.itemTitle,
+                          ),
+                        ),
+                      for (final detail in item.details)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6),
+                                child: Icon(
+                                  Icons.circle,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: AppText(
+                                  detail,
+                                  style: AppTextStyles.pixelBodyLarge,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           bottomNavigationBar: SafeArea(
             top: false,
@@ -343,8 +412,8 @@ class _WorldGalleryState extends State<_WorldGallery> {
           child: ClipRRect(
             borderRadius: AppRadii.standard,
             child: widget.item.coverUrl != null && widget.item.gallery.isEmpty
-                ? Image.network(
-                    widget.item.coverUrl!,
+                ? Image(
+                    image: AppNetworkImage(widget.item.coverUrl!),
                     fit: BoxFit.cover,
                     semanticLabel: widget.item.name,
                     errorBuilder: (_, _, _) => Image.asset(

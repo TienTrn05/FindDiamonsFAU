@@ -8,7 +8,10 @@ abstract final class ApiConfig {
 
   static Uri get baseUri {
     if (_baseUrl.isNotEmpty) return Uri.parse(_baseUrl);
-    final host = defaultTargetPlatform == TargetPlatform.android
+    // Android debug builds establish `adb reverse tcp:8000 tcp:8000` before
+    // launch. Use the same localhost backend as the desktop browser; bypass
+    // emulator gateway transfers that can close before the full body arrives.
+    final host = defaultTargetPlatform == TargetPlatform.android && !kDebugMode
         ? '10.0.2.2'
         : '127.0.0.1';
     return Uri(scheme: 'http', host: host, port: 8000);

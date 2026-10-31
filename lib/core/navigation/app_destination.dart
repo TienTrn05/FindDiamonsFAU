@@ -1,4 +1,5 @@
 enum AppDestination {
+  dashboard('/dashboard', 'Home'),
   find('/find', 'Find'),
   history('/history', 'History'),
   skins('/skins', 'Skins'),

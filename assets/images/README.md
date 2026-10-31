@@ -23,3 +23,5 @@ Saved path: `assets/images/warehouse.png`.
 Final prompt:
 
 > Use case: stylized-concept. Asset type: square mobile game map cover thumbnail, 1024x1024. A moody abandoned warehouse interior entirely built of textured cubic voxel blocks, reminiscent of a classic block-building game. Long low perspective corridor through dark stone brick floors, block brick walls and thick square pillars, stacked wooden cubic crates, metal grate details, dim cool white overhead square lights, far doorway disappearing in shadow. Slightly desaturated gray palette with muted brown crates. Atmospheric eerie exploration but no violence and no creatures. Crisp pixel textures and sharp block geometry, recognizable game screenshot appearance. Composition must remain readable when shown as a small cropped portrait thumbnail. No people, no characters, no letters, no text, no UI, no title, no border, no watermark.
+
+Help banner: `assets/images/help_cave.png`, generated with the built-in imagegen tool. See [the complete prompt and usage](../../docs/help-design.md#banner-provenance).
