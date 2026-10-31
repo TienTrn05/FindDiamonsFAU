@@ -33,7 +33,7 @@ abstract final class BannerAdLayout {
 
   static Future<AdSize> _measure(int width) async {
     try {
-      return await AdSize.getLargeAnchoredAdaptiveBannerAdSize(
+      return await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
             width,
           ).timeout(const Duration(seconds: 3)) ??
           AdSize.banner;

@@ -1,9 +1,6 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -116,32 +113,6 @@ Future<_Servers> _mount(WidgetTester tester, {double width = 414}) async {
   return repository;
 }
 
-Future<void> _capture(WidgetTester tester, String name) async {
-  if (Platform.environment['CAPTURE_PREVIEWS'] != 'true') return;
-  await tester.runAsync(
-    () => precacheImage(
-      const AssetImage('assets/images/block_landscape.png'),
-      tester.element(find.byKey(_previewKey)),
-    ),
-  );
-  await tester.pump();
-  await tester.runAsync(() async {
-    final boundary = tester.renderObject<RenderRepaintBoundary>(
-      find.byKey(_previewKey),
-    );
-    final image = await boundary.toImage(pixelRatio: 2);
-    try {
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      await Directory('output/previews').create(recursive: true);
-      await File('output/previews/$name.png').writeAsBytes(
-        bytes!.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      );
-    } finally {
-      image.dispose();
-    }
-  });
-}
-
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -207,7 +178,7 @@ void main() {
   ) async {
     final repository = await _mount(tester);
     final header = find.byType(ServerProfileHeader);
-    expect(find.byTooltip('Tap here...'), findsOneWidget);
+    expect(find.byTooltip('Tap here...'), findsNothing);
     expect(find.byType(SkinHead), findsOneWidget);
     expect(tester.getSize(header), const Size(40, 40));
     final before = tester.getRect(header);
@@ -302,83 +273,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Done hides keyboard; only OK saves; Cancel preserves username', (
-    tester,
-  ) async {
+  testWidgets('profile tap does not open the username dialog', (tester) async {
     final repository = await _mount(tester);
     repository.complete();
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('server-username-header')));
     await tester.pumpAndSettle();
-    final input = find.byKey(const ValueKey('server-username-input'));
-    await tester.enterText(input, 'JAAJs');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(find.byType(ServerUsernameDialog), findsOneWidget);
-    final panel = find
-        .descendant(
-          of: find.byType(ServerUsernameDialog),
-          matching: find.byType(Material),
-        )
-        .first;
-    expect(tester.getSize(panel).width, 232);
-    expect(
-      (await SharedPreferences.getInstance()).getString('minecraft_username'),
-      isNull,
-    );
-    await _capture(tester, 'servers-profile-dialog');
-    await tester.tap(find.byKey(const ValueKey('server-username-save')));
-    await tester.pumpAndSettle();
     expect(find.byType(ServerUsernameDialog), findsNothing);
-    expect(find.byTooltip('JAAJs'), findsOneWidget);
-    expect(
-      (await SharedPreferences.getInstance()).getString('minecraft_username'),
-      'JAAJs',
-    );
-
-    await tester.tap(find.byKey(const ValueKey('server-username-header')));
-    await tester.pumpAndSettle();
-    await tester.enterText(input, 'OtherUser');
-    await tester.tap(find.byKey(const ValueKey('server-username-cancel')));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('JAAJs'), findsOneWidget);
-    expect(
-      (await SharedPreferences.getInstance()).getString('minecraft_username'),
-      'JAAJs',
-    );
-
-    await tester.tap(find.byKey(const ValueKey('server-username-header')));
-    await tester.pumpAndSettle();
-    await tester.enterText(input, '');
-    await tester.tap(find.byKey(const ValueKey('server-username-save')));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Tap here...'), findsOneWidget);
-    expect(
-      (await SharedPreferences.getInstance()).getString('minecraft_username'),
-      isNull,
-    );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('username dialog fits a small screen with the keyboard open', (
-    tester,
-  ) async {
-    final repository = await _mount(tester, width: 320);
-    repository.complete();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('server-username-header')));
-    await tester.pumpAndSettle();
-    tester.view.viewInsets = const FakeViewPadding(bottom: 600);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pumpAndSettle();
-    final button = tester.getRect(
-      find.byKey(const ValueKey('server-username-save')),
-    );
-    expect(button.bottom, lessThanOrEqualTo(296));
-    expect(tester.takeException(), isNull);
-    await tester.tap(find.byKey(const ValueKey('server-username-cancel')));
-    await tester.pumpAndSettle();
-    expect(find.byType(ServerUsernameDialog), findsNothing);
+    expect(find.byKey(const ValueKey('server-username-input')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

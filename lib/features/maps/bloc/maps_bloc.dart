@@ -17,10 +17,42 @@ class MapsBloc extends ResourceController<MapCatalog> {
   );
   String? _category;
   String? seedVersion;
-  List<String> get seedVersions => {
-    for (final item in data!.items)
-      if (item.category == 'Seeds') ...item.versions,
-  }.toList(growable: false);
+  List<String> versionsFor(String edition) {
+    final api = data!.seedVersions[edition];
+    final versions = api != null ? api.toSet() : <String>{};
+    if (api == null) {
+      for (final item in data!.items.where(
+        (item) => item.category == 'Seeds',
+      )) {
+        for (final version in item.versions) {
+          final match = RegExp(
+            r'^(\d+(?:\.\d+)*)(?:\s+(Java|Bedrock))?$',
+            caseSensitive: false,
+          ).firstMatch(version);
+          if (match == null) continue;
+          final itemEdition = (match.group(2) ?? item.seedEdition)
+              .toLowerCase();
+          if (itemEdition == edition || itemEdition == 'both') {
+            versions.add(match.group(1)!);
+          }
+        }
+      }
+    }
+    final sorted = versions.toList();
+    sorted.sort((a, b) {
+      final left = a.split('.').map(int.parse).toList();
+      final right = b.split('.').map(int.parse).toList();
+      for (var i = 0; i < left.length || i < right.length; i++) {
+        final comparison = (i < right.length ? right[i] : 0).compareTo(
+          i < left.length ? left[i] : 0,
+        );
+        if (comparison != 0) return comparison;
+      }
+      return 0;
+    });
+    return sorted;
+  }
+
   String get category {
     final catalog = data;
     if (catalog == null) return '';
@@ -46,15 +78,27 @@ class MapsBloc extends ResourceController<MapCatalog> {
             category == 'All' ||
             (category == 'Favourite'
                 ? favourites.contains(item.id)
-                : item.category == category),
+                : item.category == category ||
+                      item.categories.contains(category)),
       )
       .where(
         (item) =>
             category != 'Seeds' ||
             seedVersion == null ||
-            item.versions.contains(seedVersion),
+            _matchesVersion(item, seedVersion!),
       )
       .toList(growable: false);
+
+  bool _matchesVersion(MapItem item, String selection) {
+    final parts = selection.split(' ');
+    final edition = parts.last.toLowerCase();
+    return item.versions.any((version) {
+      if (version.toLowerCase() == selection.toLowerCase()) return true;
+      final itemEdition = item.seedEdition.toLowerCase();
+      return version == parts.first &&
+          (itemEdition == edition || itemEdition == 'both');
+    });
+  }
 
   @override
   Future<MapCatalog> fetch() => repository.load();

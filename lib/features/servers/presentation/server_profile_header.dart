@@ -11,13 +11,13 @@ class ServerProfileHeader extends StatelessWidget {
   const ServerProfileHeader({
     super.key,
     required this.username,
-    required this.onTap,
+    this.onTap,
     this.selectedSkin,
     this.compact = false,
   });
 
   final String? username;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final SkinItem? selectedSkin;
   final bool compact;
 
@@ -26,7 +26,9 @@ class ServerProfileHeader extends StatelessWidget {
     final name = username?.trim() ?? '';
     if (compact) {
       return Tooltip(
-        message: name.isEmpty ? context.tr('Tap here...') : name,
+        message: name.isEmpty
+            ? (onTap == null ? '' : context.tr('Tap here...'))
+            : name,
         child: Material(
           color: AppColors.helpRaised,
           shape: const PixelBorder(

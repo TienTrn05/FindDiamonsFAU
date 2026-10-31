@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/widgets/app_text.dart';
 import '../../../common/widgets/mining_neon_panel.dart';
@@ -13,6 +14,7 @@ import 'server_status.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../../core/monetization/app_monetization.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/network/api_config.dart';
 import '../bloc/servers_bloc.dart';
 import '../data/api_servers_repository.dart';
 import '../data/servers_repository.dart';
@@ -21,7 +23,6 @@ import '../models/server_catalog.dart';
 import '../../skins/models/skin_item.dart';
 import 'server_info_page.dart';
 import 'server_profile_header.dart';
-import 'server_username_dialog.dart';
 
 class ServersPage extends StatefulWidget {
   const ServersPage({
@@ -95,31 +96,6 @@ class _ServersPageState extends State<ServersPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _editUsername() async {
-    final username = await showDialog<String>(
-      context: context,
-      barrierColor: const Color(0xB3000000),
-      builder: (_) => ServerUsernameDialog(username: _minecraftUsername),
-    );
-    if (!mounted || username == null) return;
-    final cleaned = username.trim();
-    setState(() => _minecraftUsername = cleaned.isEmpty ? null : cleaned);
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      final saved = cleaned.isEmpty
-          ? await preferences.remove(_usernameKey)
-          : await preferences.setString(_usernameKey, cleaned);
-      if (!saved) throw StateError('Username could not be saved');
-    } catch (error) {
-      debugPrint('Minecraft username could not be saved: $error');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: AppText('Unable to save your username.')),
-        );
-      }
-    }
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -143,6 +119,24 @@ class _ServersPageState extends State<ServersPage> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openServerListing() async {
+    try {
+      final url = ApiConfig.baseUri.resolve('/mcstat.html');
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('Could not open the server listing page');
+      }
+    } catch (error) {
+      debugPrint('Server listing page unavailable: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: AppText('Unable to open this website. Please try again.'),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => MiningBackground(
     vivid: true,
@@ -161,7 +155,6 @@ class _ServersPageState extends State<ServersPage> with WidgetsBindingObserver {
                 compact: true,
                 username: _minecraftUsername,
                 selectedSkin: widget.selectedSkin,
-                onTap: _editUsername,
               ),
             ),
           ),
@@ -203,7 +196,7 @@ class _ServersPageState extends State<ServersPage> with WidgetsBindingObserver {
                     physics: const ClampingScrollPhysics(),
                     key: const PageStorageKey('server-list'),
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-                    itemCount: catalog.servers.length,
+                    itemCount: catalog.servers.length + 1,
                     findChildIndexCallback: (key) {
                       if (key is! ValueKey<String>) return null;
                       final index = catalog.servers.indexWhere(
@@ -212,6 +205,48 @@ class _ServersPageState extends State<ServersPage> with WidgetsBindingObserver {
                       return index < 0 ? null : index;
                     },
                     itemBuilder: (context, index) {
+                      if (index == catalog.servers.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: MiningNeonPanel(
+                            key: const ValueKey('list-your-server'),
+                            accent: AppColors.primary,
+                            onTap: _openServerListing,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 17,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.add_circle_outline,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: AppText(
+                                    'Own a server? List it here!',
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.onPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.open_in_new,
+                                  color: AppColors.primary,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
                       final server = catalog.servers[index];
                       return _RetainedServerCard(
                         key: ValueKey('server-row-${server.id}'),

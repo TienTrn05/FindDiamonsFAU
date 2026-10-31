@@ -48,75 +48,87 @@ class _MapsPageState extends State<MapsPage> {
     );
   }
 
-  Widget _seedFilters() {
-    final versions = _bloc.seedVersions;
-    final rows = [versions.take(4), versions.skip(4).take(5), versions.skip(9)];
-    return Container(
-      key: const ValueKey('seed-version-filters'),
-      width: double.infinity,
-      color: AppColors.banner,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var row = 0; row < rows.length; row++)
-            if (rows[row].isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(top: row == 0 ? 0 : AppSpacing.xs),
-                child: Align(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      key: ValueKey('seed-version-row-$row'),
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final version in rows[row])
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            child: Semantics(
-                              button: true,
-                              selected: _bloc.seedVersion == version,
-                              child: Material(
-                                color: _bloc.seedVersion == version
-                                    ? AppColors.navigationSelected
-                                    : AppColors.chipSurface,
-                                shape: const StadiumBorder(),
-                                child: InkWell(
-                                  key: ValueKey('seed-version-$version'),
-                                  customBorder: const StadiumBorder(),
-                                  onTap: () => _bloc.selectSeedVersion(
-                                    _bloc.seedVersion == version
-                                        ? null
-                                        : version,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 5,
-                                    ),
-                                    child: AppText(
-                                      version,
-                                      style: AppTextStyles.serverInfoTag
-                                          .copyWith(fontSize: 11, height: 1.2),
-                                      maxLines: 1,
-                                    ),
+  Widget _seedFilters() => Container(
+    key: const ValueKey('seed-version-filters'),
+    width: double.infinity,
+    color: AppColors.banner,
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    child: Column(
+      children: [
+        for (final edition in ['java', 'bedrock'])
+          if (_bloc.versionsFor(edition).isNotEmpty)
+            Container(
+              key: ValueKey('seed-version-group-$edition'),
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.cavePanel,
+                border: Border.all(color: AppColors.accent),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 5,
+                runSpacing: 5,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 5,
+                      horizontal: 2,
+                    ),
+                    child: AppText(
+                      edition == 'java' ? 'Java:' : 'Bedrock:',
+                      style: AppTextStyles.serverInfoTag.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  for (final number in _bloc.versionsFor(edition))
+                    Builder(
+                      builder: (context) {
+                        final version =
+                            '$number ${edition == 'java' ? 'Java' : 'Bedrock'}';
+                        final selected = _bloc.seedVersion == version;
+                        return Semantics(
+                          button: true,
+                          selected: selected,
+                          child: Material(
+                            color: selected
+                                ? AppColors.accent
+                                : AppColors.chipSurface,
+                            shape: const StadiumBorder(),
+                            child: InkWell(
+                              key: ValueKey('seed-version-$version'),
+                              customBorder: const StadiumBorder(),
+                              onTap: () => _bloc.selectSeedVersion(
+                                selected ? null : version,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 5,
+                                ),
+                                child: AppText(
+                                  number,
+                                  style: AppTextStyles.serverInfoTag.copyWith(
+                                    fontSize: 11,
+                                    height: 1.2,
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                      ],
+                        );
+                      },
                     ),
-                  ),
-                ),
+                ],
               ),
-        ],
-      ),
-    );
-  }
+            ),
+      ],
+    ),
+  );
 
   Widget _mapCard(MapItem item, bool locked) => MiningPanel(
     padding: EdgeInsets.zero,

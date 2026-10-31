@@ -1979,23 +1979,14 @@ void main() {
       matching: find.byType(InkWell),
     );
     expect(versionButtons, findsNWidgets(11));
-    final rowOffsets = versionButtons
-        .evaluate()
-        .map(
-          (element) =>
-              tester.getTopLeft(find.byWidget(element.widget)).dy.round(),
-        )
-        .toSet();
-    expect(rowOffsets.length, 3);
-    for (final (row, count) in [(0, 4), (1, 5), (2, 2)]) {
-      expect(
-        find.descendant(
-          of: find.byKey(ValueKey('seed-version-row-$row')),
-          matching: find.byType(InkWell),
-        ),
-        findsNWidgets(count),
-      );
-    }
+    expect(
+      find.byKey(const ValueKey('seed-version-group-java')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('seed-version-group-bedrock')),
+      findsOneWidget,
+    );
     // Bring the entire card into view regardless of the font's line wrapping.
     await tester.drag(
       find.byKey(const PageStorageKey('maps-Seeds')),
@@ -2031,7 +2022,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Emerald Valley'), findsOneWidget);
     expect(find.text('Cliffside Village'), findsNothing);
-    expect(find.text('1.21 Java'), findsNWidgets(2));
+    expect(find.text('1.21 Java'), findsOneWidget);
 
     String? clipboard;
     addTearDown(

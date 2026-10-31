@@ -41,7 +41,7 @@ dependencies:
   path_provider: ^2.1.6
   share_plus: ^13.3.1
   # Keep the iOS Google Mobile Ads SDK on the Xcode 15-compatible 11.x line.
-  google_mobile_ads: 9.2.0
+  google_mobile_ads: 5.3.1
   url_launcher: ^6.3.2
 
 dev_dependencies:

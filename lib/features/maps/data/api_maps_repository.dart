@@ -19,6 +19,7 @@ class ApiMapsRepository extends JsonMapsRepository {
     final localCatalog = await super.load();
     var maps = localCatalog.items.where((item) => item.category != 'Seeds');
     var seeds = localCatalog.items.where((item) => item.category == 'Seeds');
+    var versions = <String, List<String>>{};
     try {
       maps = await _loadMaps();
     } catch (error) {
@@ -29,12 +30,28 @@ class ApiMapsRepository extends JsonMapsRepository {
     } catch (error) {
       debugPrint('Seed API unavailable; using bundled seeds: $error');
     }
+    try {
+      final response = await _getJson('/api/versions');
+      for (final edition in ['java', 'bedrock']) {
+        final raw = response[edition];
+        if (raw is List) {
+          versions[edition] = raw
+              .whereType<String>()
+              .where((version) => RegExp(r'^\d+(?:\.\d+)*$').hasMatch(version))
+              .toSet()
+              .toList();
+        }
+      }
+    } catch (error) {
+      debugPrint('Version API unavailable; using seed versions: $error');
+    }
 
     return MapCatalog(
       title: localCatalog.title,
       categories: localCatalog.categories,
       initialCategory: localCatalog.initialCategory,
       items: [...maps, ...seeds],
+      seedVersions: versions,
     );
   }
 
@@ -100,10 +117,10 @@ class ApiMapsRepository extends JsonMapsRepository {
         final image = value['image'];
         final creator = value['creator'] as String? ?? '';
         final normalizedCategory = _mapCategory(rawCategory);
-        final displayCategories = categories
-            .map(_mapCategory)
-            .toSet()
-            .toList(growable: false);
+        final displayCategories = {
+          normalizedCategory,
+          ...categories.map(_mapCategory),
+        }.toList(growable: false);
 
         return MapItem(
           id: id,
@@ -131,15 +148,16 @@ class ApiMapsRepository extends JsonMapsRepository {
       })
       .toList(growable: false);
 
-  String _mapCategory(String category) => switch (category.toLowerCase()) {
-    'minigame' || 'mini game' || 'minigames' => 'Mini game',
-    'skyblock' => 'SkyBlock',
-    'horror' => 'Horror',
-    'maze' => 'Maze',
-    'parkour' => 'Parkour',
-    'challenge' || 'challenges' => 'Challenges',
-    _ => category,
-  };
+  String _mapCategory(String category) =>
+      switch (category.trim().toLowerCase()) {
+        'minigame' || 'mini game' || 'minigames' => 'Mini game',
+        'skyblock' => 'SkyBlock',
+        'horror' => 'Horror',
+        'maze' => 'Maze',
+        'parkour' => 'Parkour',
+        'challenge' || 'challenges' => 'Challenges',
+        _ => category,
+      };
 
   Uri? _resolveApiUrl(Object? value) {
     if (value is! String || value.trim().isEmpty) return null;
@@ -159,6 +177,21 @@ class ApiMapsRepository extends JsonMapsRepository {
   }
 
   Future<List<Map<String, dynamic>>> _getItems(String path) async {
+    final decoded = await _getJson(path);
+    if (decoded['items'] is! List) {
+      throw FormatException('Invalid response from $path');
+    }
+    return (decoded['items'] as List)
+        .map((value) {
+          if (value is! Map<String, dynamic>) {
+            throw FormatException('Invalid item from $path');
+          }
+          return value;
+        })
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> _getJson(String path) async {
     final uri = baseUri.replace(
       path: '${baseUri.path.replaceFirst(RegExp(r'/$'), '')}$path',
     );
@@ -180,18 +213,10 @@ class ApiMapsRepository extends JsonMapsRepository {
       }
 
       final decoded = jsonDecode(body);
-      if (decoded is! Map<String, dynamic> || decoded['items'] is! List) {
+      if (decoded is! Map<String, dynamic>) {
         throw FormatException('Invalid response from $path');
       }
-
-      return (decoded['items'] as List)
-          .map((value) {
-            if (value is! Map<String, dynamic>) {
-              throw FormatException('Invalid item from $path');
-            }
-            return value;
-          })
-          .toList(growable: false);
+      return decoded;
     } finally {
       client.close(force: true);
     }

@@ -1,11 +1,35 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:roblox/core/monetization/app_monetization.dart';
 import 'package:roblox/features/servers/data/servers_repository.dart';
+import 'package:roblox/features/servers/models/server_catalog.dart';
+import 'package:roblox/features/servers/presentation/server_banner.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('server banners remain visible for Pro users', (tester) async {
+    final monetization = AppMonetization(isPro: true);
+    addTearDown(monetization.dispose);
+    final server = ServerItem.fromApiJson({
+      'id': 'example',
+      'name': 'Example',
+    }, rank: 1);
+    await tester.pumpWidget(
+      MonetizationScope(
+        controller: monetization,
+        child: MaterialApp(
+          home: Scaffold(body: ServerBanner(server: server)),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('server-banner-example')), findsOneWidget);
+    expect(tester.getSize(find.byType(ServerBanner)).height, greaterThan(0));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   test('the four reference servers bundle real animated GIF banners', () async {
     final catalog = await const JsonServersRepository().load();

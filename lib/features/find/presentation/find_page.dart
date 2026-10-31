@@ -338,35 +338,47 @@ class _FindPageState extends State<FindPage> {
           ],
         ),
         const SizedBox(height: 6),
-        Theme(
-          data: Theme.of(context).copyWith(canvasColor: MiningStyle.stone),
-          child: DropdownButtonFormField<String>(
+        LayoutBuilder(
+          builder: (context, constraints) => PopupMenuButton<String>(
             key: const ValueKey('game-version'),
-            initialValue: _bloc.version.id,
-            isExpanded: true,
-            dropdownColor: MiningStyle.stone,
-            iconEnabledColor: MiningStyle.muted,
-            decoration: _input(compact).copyWith(helperText: null),
-            style: MiningStyle.label,
-            items: catalog.versions
-                .map(
-                  (version) => DropdownMenuItem(
-                    key: ValueKey('game-version-${version.id}'),
-                    value: version.id,
+            enabled: !_bloc.searching,
+            position: PopupMenuPosition.under,
+            color: MiningStyle.stone,
+            constraints: BoxConstraints(
+              minWidth: constraints.maxWidth,
+              maxWidth: constraints.maxWidth,
+              maxHeight: 320,
+            ),
+            onSelected: _bloc.selectVersion,
+            itemBuilder: (context) => [
+              for (final version in catalog.versions)
+                PopupMenuItem<String>(
+                  key: ValueKey('game-version-${version.id}'),
+                  value: version.id,
+                  child: AppText(
+                    version.label,
+                    style: MiningStyle.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            child: InputDecorator(
+              decoration: _input(compact).copyWith(helperText: null),
+              child: Row(
+                children: [
+                  Expanded(
                     child: AppText(
-                      version.label,
+                      _bloc.version.label,
                       style: MiningStyle.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                )
-                .toList(growable: false),
-            onChanged: _bloc.searching
-                ? null
-                : (value) {
-                    if (value != null) _bloc.selectVersion(value);
-                  },
+                  const Icon(Icons.arrow_drop_down, color: MiningStyle.muted),
+                ],
+              ),
+            ),
           ),
         ),
       ],
