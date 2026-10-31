@@ -1,4 +1,5 @@
 import '../../../common/widgets/app_text.dart';
+import '../../../core/network/app_image_cache.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -8,6 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../common/widgets/landscape_background.dart';
+import '../../../common/widgets/game_header.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../../common/widgets/voxel_character.dart';
 import '../../../common/widgets/voxel_character_3d.dart';
@@ -154,6 +158,19 @@ class _SkinsPageState extends State<SkinsPage> {
     }
   }
 
+  Widget _grid(List<SkinItem> skins, double width) => GridView.builder(
+    key: const PageStorageKey('skins-grid'),
+    padding: EdgeInsets.zero,
+    itemCount: skins.length,
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: AppLayout.gridColumns(width),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: .84,
+    ),
+    itemBuilder: (_, index) => _skinCard(skins[index]),
+  );
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _access,
@@ -163,49 +180,52 @@ class _SkinsPageState extends State<SkinsPage> {
         child: ResourceView<List<SkinItem>>(
           controller: _bloc,
           builder: (context, skins) => Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            child: LayoutBuilder(
-              builder: (context, constraints) => Column(
-                children: [
-                  SizedBox(height: 46, child: _searchField()),
-                  const SizedBox(height: 6),
-                  if (skins.isEmpty)
-                    const Expanded(
-                      child: Center(
-                        child: AppText(
-                          'No skins found.',
-                          style: AppTextStyles.onPrimaryPixelBody,
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                const GameHeader(
+                  title: 'Skins',
+                  subtitle: 'Make every adventure your own.',
+                  icon: Icons.face,
+                  contentHeight: 72,
+                ),
+                const SizedBox(height: 10),
+                SizedBox(height: 46, child: _searchField()),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: skins.isEmpty
+                      ? const MiningEmptyState(
+                          title: 'No skins found.',
+                          icon: Icons.person_search_outlined,
+                        )
+                      : LayoutBuilder(
+                          builder: (context, space) {
+                            if (space.maxHeight < 280 && space.maxWidth > 420) {
+                              return Row(
+                                children: [
+                                  Expanded(flex: 4, child: _preview()),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 5,
+                                    child: _grid(skins, space.maxWidth * .55),
+                                  ),
+                                ],
+                              );
+                            }
+                            return Column(
+                              children: [
+                                SizedBox(
+                                  height: math.min(285, space.maxHeight * .46),
+                                  child: _preview(),
+                                ),
+                                const SizedBox(height: 12),
+                                Expanded(child: _grid(skins, space.maxWidth)),
+                              ],
+                            );
+                          },
                         ),
-                      ),
-                    )
-                  else ...[
-                    SizedBox(
-                      height: math.min(
-                        285.0,
-                        (constraints.maxHeight - 80).clamp(0.0, 10000.0) * .46,
-                      ),
-                      child: _preview(),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Expanded(
-                      child: GridView.builder(
-                        key: const PageStorageKey('skins-grid'),
-                        padding: EdgeInsets.zero,
-                        itemCount: skins.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: AppLayout.gridColumns(
-                            constraints.maxWidth,
-                          ),
-                          mainAxisSpacing: AppSpacing.xl,
-                          crossAxisSpacing: AppSpacing.xl,
-                          childAspectRatio: .82,
-                        ),
-                        itemBuilder: (_, index) => _skinCard(skins[index]),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -242,9 +262,11 @@ class _SkinsPageState extends State<SkinsPage> {
 
   Widget _preview() => Container(
     key: const ValueKey('skin-preview'),
-    decoration: const BoxDecoration(
+    decoration: const ShapeDecoration(
       color: AppColors.surface,
-      borderRadius: AppRadii.standard,
+      shape: PixelBorder(
+        side: BorderSide(color: AppColors.primary, width: 1.5),
+      ),
     ),
     clipBehavior: Clip.antiAlias,
     child: Column(
@@ -262,8 +284,7 @@ class _SkinsPageState extends State<SkinsPage> {
                   ),
                   child: RepaintBoundary(
                     key: _skinImage,
-                    child: ColoredBox(
-                      color: AppColors.surface,
+                    child: MiningStage(
                       child: VoxelCharacter3D(
                         key: const ValueKey('skin-3d-viewer'),
                         palette: _bloc.selected.palette,
@@ -316,9 +337,9 @@ class _SkinsPageState extends State<SkinsPage> {
           ),
         ),
         ColoredBox(
-          color: AppColors.primary,
+          color: AppColors.helpRaised,
           child: SizedBox(
-            height: 52,
+            height: 48,
             child: Row(
               children: [
                 Expanded(
@@ -328,7 +349,10 @@ class _SkinsPageState extends State<SkinsPage> {
                     child: AppText(
                       'Idle',
                       style: AppTextStyles.onPrimaryPixelField.copyWith(
-                        fontSize: 18,
+                        color: !_bloc.walking
+                            ? AppColors.primary
+                            : AppColors.caveMuted,
+                        fontSize: 15,
                       ),
                     ),
                   ),
@@ -344,7 +368,10 @@ class _SkinsPageState extends State<SkinsPage> {
                     child: AppText(
                       'Walk',
                       style: AppTextStyles.onPrimaryPixelField.copyWith(
-                        fontSize: 18,
+                        color: _bloc.walking
+                            ? AppColors.primary
+                            : AppColors.caveMuted,
+                        fontSize: 15,
                       ),
                     ),
                   ),
@@ -394,7 +421,8 @@ class _SkinsPageState extends State<SkinsPage> {
               : skin.name,
           child: Material(
             color: AppColors.surface,
-            borderRadius: AppRadii.standard,
+            shape: const PixelBorder(),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               key: ValueKey('skin-${skin.id}'),
               borderRadius: AppRadii.standard,
@@ -407,9 +435,16 @@ class _SkinsPageState extends State<SkinsPage> {
               onTap: _sharing ? null : () => _bloc.select(skin),
               child: Container(
                 decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.helpRaised, AppColors.cave],
+                  ),
                   border: Border.all(
-                    color: AppColors.primary,
-                    width: _bloc.selected.id == skin.id ? 3 : 2,
+                    color: _bloc.selected.id == skin.id
+                        ? AppColors.primary
+                        : AppColors.helpBorder,
+                    width: _bloc.selected.id == skin.id ? 2 : 1,
                   ),
                   borderRadius: AppRadii.standard,
                 ),
@@ -451,8 +486,8 @@ class _SkinsPageState extends State<SkinsPage> {
   Widget _skinCardArtwork(SkinItem skin) {
     final previewUrl = skin.previewUrl;
     if (previewUrl == null) return VoxelCharacter(palette: skin.palette);
-    return Image.network(
-      previewUrl.toString(),
+    return Image(
+      image: AppNetworkImage(previewUrl.toString()),
       fit: BoxFit.contain,
       errorBuilder: (_, _, _) => VoxelCharacter(palette: skin.palette),
     );

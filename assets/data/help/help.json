@@ -1,14 +1,46 @@
 {
   "restoreHint": "Click the button to restore your in-app purchases.",
   "languages": [
-    {"code": "en", "label": "English", "flag": "us"},
-    {"code": "es", "label": "Español", "flag": "es"},
-    {"code": "pt", "label": "Português", "flag": "pt"},
-    {"code": "tr", "label": "Türkçe", "flag": "tr"},
-    {"code": "fr", "label": "Français", "flag": "fr"},
-    {"code": "de", "label": "Deutsch", "flag": "de"},
-    {"code": "id", "label": "Bahasa Indonesia", "flag": "id"},
-    {"code": "vi", "label": "Tiếng Việt", "flag": "vn"}
+    {
+      "code": "en",
+      "label": "English",
+      "flag": "us"
+    },
+    {
+      "code": "es",
+      "label": "Español",
+      "flag": "es"
+    },
+    {
+      "code": "pt",
+      "label": "Português",
+      "flag": "pt"
+    },
+    {
+      "code": "tr",
+      "label": "Türkçe",
+      "flag": "tr"
+    },
+    {
+      "code": "fr",
+      "label": "Français",
+      "flag": "fr"
+    },
+    {
+      "code": "de",
+      "label": "Deutsch",
+      "flag": "de"
+    },
+    {
+      "code": "id",
+      "label": "Bahasa Indonesia",
+      "flag": "id"
+    },
+    {
+      "code": "vi",
+      "label": "Tiếng Việt",
+      "flag": "vn"
+    }
   ],
   "faqs": [
     {
@@ -24,6 +56,20 @@
       "before": "In Bedrock/PE: Press Pause > Settings > Game, then scroll down until you see \"Seed\".\nIn Java: Type /seed in chat with the required permissions to display your world seed.",
       "illustration": "seed",
       "after": "Copy the complete seed into the World seed field. Keep a note of it so you can use the same world again."
+    },
+    {
+      "id": "versions",
+      "question": "Which Minecraft versions are supported?",
+      "before": "The Find Ore version menu lists the Java versions available for searching. Select the version that matches your world before you start.",
+      "illustration": "",
+      "after": ""
+    },
+    {
+      "id": "safety",
+      "question": "Is this app safe to use?",
+      "before": "Ore Scout works alongside your game. It does not change your world or ask for your game account password.",
+      "illustration": "",
+      "after": ""
     }
   ],
   "policySections": [

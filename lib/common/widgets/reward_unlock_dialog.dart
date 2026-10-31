@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'mining_surface.dart';
 
 import '../../core/monetization/app_monetization.dart';
 import '../../core/monetization/rewarded_ad_service.dart';
@@ -110,7 +111,9 @@ class _RewardUnlockDialogState extends State<RewardUnlockDialog> {
     child: Dialog(
       backgroundColor: AppColors.surface,
       insetPadding: const EdgeInsets.all(AppSpacing.xxl),
-      shape: const RoundedRectangleBorder(borderRadius: AppRadii.standard),
+      shape: const PixelBorder(
+        side: BorderSide(color: AppColors.helpBorder, width: 2),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: SingleChildScrollView(
@@ -178,6 +181,7 @@ class _RewardUnlockDialogState extends State<RewardUnlockDialog> {
               AppButton(
                 key: ValueKey('${widget.keyPrefix}-unlock-premium'),
                 label: 'Go Ads Free with Premium',
+                backgroundColor: AppColors.gold,
                 pixel: true,
                 textStyle: AppTextStyles.pixelButtonSmall,
                 onPressed: _busy ? null : () => Navigator.pop(context, true),

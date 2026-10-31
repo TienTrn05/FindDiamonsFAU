@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../common/widgets/mining_surface.dart';
 import '../models/help_content.dart';
 import 'help_action_button.dart';
 
@@ -48,13 +49,16 @@ class _HelpPolicyDialogState extends State<HelpPolicyDialog> {
 
   @override
   Widget build(BuildContext context) => Dialog(
-    backgroundColor: AppColors.surface,
-    surfaceTintColor: AppColors.surface,
+    backgroundColor: AppColors.stoneLight,
+    surfaceTintColor: AppColors.transparent,
     insetPadding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.xl,
       vertical: AppSpacing.xxl,
     ),
-    shape: const RoundedRectangleBorder(borderRadius: AppRadii.standard),
+    shape: const PixelBorder(
+      side: BorderSide(color: AppColors.stoneEdge, width: 3),
+    ),
+    clipBehavior: Clip.antiAlias,
     child: ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: 480,
@@ -79,10 +83,19 @@ class _HelpPolicyDialogState extends State<HelpPolicyDialog> {
                       for (final section in widget.sections) ...[
                         AppText(
                           section.title,
-                          style: AppTextStyles.helpHeading,
+                          style: AppTextStyles.helpHeading.copyWith(
+                            color: AppColors.ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        AppText(section.body, style: AppTextStyles.helpBody),
+                        AppText(
+                          section.body,
+                          style: AppTextStyles.helpBody.copyWith(
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
                         TextButton(
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
@@ -94,7 +107,7 @@ class _HelpPolicyDialogState extends State<HelpPolicyDialog> {
                             style: AppTextStyles.helpLink,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xl),
+                        const Divider(color: AppColors.stoneEdge, height: 32),
                       ],
                     ],
                   ),

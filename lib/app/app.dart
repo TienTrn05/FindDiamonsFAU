@@ -6,8 +6,10 @@ import '../core/localization/app_locale_controller.dart';
 import '../core/localization/app_translations.dart';
 import '../common/widgets/app_loading_page.dart';
 import '../common/widgets/app_page_frame.dart';
+import '../core/responsive/app_layout.dart';
 import '../core/navigation/app_destination.dart';
 import '../core/monetization/app_monetization.dart';
+import '../core/monetization/banner_ad_layout.dart';
 import '../core/theme/app_theme.dart';
 import '../features/onboarding/data/onboarding_preferences.dart';
 import '../features/onboarding/presentation/onboarding_flow.dart';
@@ -33,6 +35,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  late final _repositories = widget.repositories ?? AppRepositories();
   late final _monetization = widget.monetization ?? AppMonetization();
   late final AppLocaleController _languages =
       widget.localeController ?? AppLocaleController();
@@ -60,7 +63,7 @@ class _MyAppState extends State<MyApp> {
         builder: (context, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'Find Diamonds',
-          theme: AppTheme.light,
+          theme: AppTheme.dark,
           locale: _languages.locale,
           supportedLocales: AppTranslations.supportedLocales,
           localizationsDelegates: const [
@@ -69,14 +72,14 @@ class _MyAppState extends State<MyApp> {
           ],
           home: _AppEntry(
             skipOnboarding: widget.skipOnboarding,
-            repositories: widget.repositories,
+            repositories: _repositories,
           ),
           routes: {
-            '/help': (_) => HelpPage(repository: widget.repositories?.help),
+            '/help': (_) => HelpPage(repository: _repositories.help),
             for (final destination in AppDestination.values)
               destination.route: (_) => AppShell(
                 initialDestination: destination,
-                repositories: widget.repositories,
+                repositories: _repositories,
               ),
           },
         ),
@@ -86,9 +89,9 @@ class _MyAppState extends State<MyApp> {
 }
 
 class _AppEntry extends StatefulWidget {
-  const _AppEntry({required this.skipOnboarding, this.repositories});
+  const _AppEntry({required this.skipOnboarding, required this.repositories});
   final bool skipOnboarding;
-  final AppRepositories? repositories;
+  final AppRepositories repositories;
   @override
   State<_AppEntry> createState() => _AppEntryState();
 }
@@ -100,7 +103,12 @@ class _AppEntryState extends State<_AppEntry> {
   bool _splashDone = false;
   bool _launchAdDone = false;
   bool _launchAdStarted = false;
+  bool _dataReady = false;
+  bool _preparing = false;
+  Future<void>? _bannerLayout;
+  bool _bannerLayoutReady = false;
   Timer? _splashTimer;
+  Timer? _startupRetry;
 
   @override
   void initState() {
@@ -109,17 +117,47 @@ class _AppEntryState extends State<_AppEntry> {
       setState(() => _splashDone = true);
     });
     if (!widget.skipOnboarding) _loadOnboarding();
+    _prepareData();
+  }
+
+  Future<void> _prepareData() async {
+    if (_preparing) return;
+    _startupRetry?.cancel();
+    _preparing = true;
+    try {
+      await widget.repositories.prepare();
+      if (mounted) setState(() => _dataReady = true);
+    } catch (error) {
+      debugPrint('Startup data unavailable: $error');
+      if (mounted) {
+        _startupRetry = Timer(const Duration(seconds: 60), _prepareData);
+      }
+    } finally {
+      _preparing = false;
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _bannerLayout ??= _prepareBannerLayout();
     if (_launchAdStarted) return;
     _launchAdStarted = true;
     final access = MonetizationScope.maybeOf(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_showLaunchAd(access));
     });
+  }
+
+  Future<void> _prepareBannerLayout() async {
+    final width = MediaQuery.sizeOf(
+      context,
+    ).width.clamp(0, AppLayout.maxContentWidth).floor();
+    await BannerAdLayout.resolve(
+      MonetizationScope.maybeOf(context)?.adsRuntime,
+      width,
+    );
+    if (mounted) setState(() => _bannerLayoutReady = true);
   }
 
   Future<void> _showLaunchAd(AppMonetization? access) async {
@@ -143,6 +181,7 @@ class _AppEntryState extends State<_AppEntry> {
   @override
   void dispose() {
     _splashTimer?.cancel();
+    _startupRetry?.cancel();
     super.dispose();
   }
 
@@ -171,7 +210,11 @@ class _AppEntryState extends State<_AppEntry> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_splashDone || !_launchAdDone || _finished == null) {
+    if (!_splashDone ||
+        !_launchAdDone ||
+        _finished == null ||
+        !_dataReady ||
+        !_bannerLayoutReady) {
       return const Scaffold(body: AppPageFrame(child: AppLoadingPage()));
     }
     return _finished!

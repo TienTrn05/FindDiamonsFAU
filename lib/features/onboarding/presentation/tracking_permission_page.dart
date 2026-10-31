@@ -2,7 +2,7 @@ import '../../../common/widgets/app_text.dart';
 import 'package:flutter/material.dart';
 
 import '../../../common/widgets/app_centered_scroll_view.dart';
-import '../../../common/widgets/ore_art.dart';
+import '../../../common/widgets/mining_surface.dart';
 import '../../../core/responsive/app_layout.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -20,22 +20,25 @@ class TrackingPermissionPage extends StatelessWidget {
   final bool busy;
 
   @override
-  Widget build(BuildContext context) => OreBackground(
+  Widget build(BuildContext context) => MiningBackground(
     child: Stack(
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: AppColors.scrim),
         SafeArea(
           child: AppCenteredScrollView(
-            child: Container(
+            child: MiningPanel(
               padding: AppInsets.dialogContent,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: AppRadii.standard,
-              ),
+              borderColor: AppColors.primary,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    size: 42,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: 20),
                   const AppText(
                     'Our app wants to stay free for you',
                     textAlign: TextAlign.center,

@@ -362,6 +362,65 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a cold Pro launch reserves the free adaptive banner size without requesting ads',
+    (tester) async {
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        calls.add(call);
+        if (call.method == 'AdSize#getLargeAnchoredAdaptiveBannerAdSize') {
+          return 125;
+        }
+        if (call.method == 'MobileAds#initialize') {
+          return InitializationStatus({});
+        }
+        return null;
+      });
+      final access = AppMonetization(isPro: true);
+      await tester.pumpWidget(
+        MonetizationScope(
+          controller: access,
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 390,
+                child: BannerAdSlot(reserveSpace: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final frame = find.byKey(const ValueKey('bottom-ad-frame'));
+      final proRect = tester.getRect(frame);
+      expect(proRect.size, const Size(390, 141));
+      expect(calls.where((call) => call.method.startsWith('load')), isEmpty);
+      expect(find.byType(AdWidget), findsNothing);
+
+      access.updateEntitlement(false);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(frame), proRect);
+      expect(
+        calls.where((call) => call.method == 'loadBannerAd'),
+        hasLength(1),
+      );
+      expect(
+        calls.where(
+          (call) =>
+              call.method == 'AdSize#getLargeAnchoredAdaptiveBannerAdSize',
+        ),
+        hasLength(1),
+      );
+      access.updateEntitlement(true);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(frame), proRect);
+      expect(calls.where((call) => call.method == 'disposeAd'), hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      access.dispose();
+    },
+  );
+
   testWidgets('enabling Pro cancels a pending banner retry', (tester) async {
     final access = AppMonetization();
     await tester.pumpWidget(

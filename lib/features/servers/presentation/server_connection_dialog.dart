@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../common/widgets/mining_surface.dart';
 
 import '../../../common/widgets/app_text.dart';
 import '../../../core/theme/app_colors.dart';
@@ -34,9 +35,8 @@ class _ServerConnectionDialogState extends State<ServerConnectionDialog> {
     backgroundColor: AppColors.surface,
     surfaceTintColor: AppColors.transparent,
     insetPadding: const EdgeInsets.all(AppSpacing.lg),
-    shape: const RoundedRectangleBorder(
-      borderRadius: AppRadii.standard,
-      side: BorderSide(color: AppColors.oreRowBorder, width: 5),
+    shape: const PixelBorder(
+      side: BorderSide(color: AppColors.helpBorder, width: 2),
     ),
     clipBehavior: Clip.antiAlias,
     child: ConstrainedBox(

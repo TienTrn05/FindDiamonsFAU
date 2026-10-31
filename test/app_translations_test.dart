@@ -57,4 +57,23 @@ void main() {
       expect(fallback.trans('Find'), 'Find');
     },
   );
+
+  test(
+    'Vietnamese translates dynamic download messages and world codes',
+    () async {
+      final vietnamese = await AppTranslations.load(const Locale('vi'));
+      expect(vietnamese.trans('Please wait 12s'), 'Vui lòng chờ 12 giây');
+      expect(vietnamese.trans('1024 KB downloaded'), 'Đã tải 1024 KB');
+      expect(
+        vietnamese.trans('Seed: -9223372036854775808'),
+        'Mã thế giới: -9223372036854775808',
+      );
+      expect(vietnamese.trans('Diamond coordinates'), 'Tọa độ Kim cương');
+      expect(vietnamese.trans('Steve_01'), 'Steve_01');
+      expect(
+        vietnamese.trans('play.example.com:19132'),
+        'play.example.com:19132',
+      );
+    },
+  );
 }
