@@ -1,136 +1,120 @@
+import '../../../common/widgets/game_back_button.dart';
 import '../../../common/widgets/app_text.dart';
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../common/widgets/ad_placements.dart';
 import '../../../common/widgets/app_page_frame.dart';
+import '../../../common/widgets/mining_surface.dart';
 import '../../../common/widgets/landscape_background.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/server_catalog.dart';
+import 'server_banner.dart';
+import 'server_status.dart';
+import 'server_connection_dialog.dart';
 
-class ServerInfoPage extends StatelessWidget {
+class ServerInfoPage extends StatefulWidget {
   const ServerInfoPage({super.key, required this.server});
 
   final ServerItem server;
 
-  Future<void> _copy(BuildContext context, String text, String message) async {
-    await Clipboard.setData(ClipboardData(text: text));
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: AppText(message)));
-    }
+  @override
+  State<ServerInfoPage> createState() => _ServerInfoPageState();
+}
+
+class _ServerInfoPageState extends State<ServerInfoPage> {
+  ServerItem get server => widget.server;
+  Timer? _copiedTimer;
+  bool _copied = false;
+  bool _sharing = false;
+  bool _openingWebsite = false;
+
+  @override
+  void dispose() {
+    _copiedTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _copyAddress() async {
+    await Clipboard.setData(ClipboardData(text: server.address));
+    if (!mounted) return;
+    _copiedTimer?.cancel();
+    setState(() => _copied = true);
+    _copiedTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _copied = false);
+    });
   }
 
   void _connectionDetails(BuildContext context) => showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: AppText(
-        server.edition.toLowerCase() == 'java'
-            ? 'Add to Java server list'
-            : 'Add to Bedrock server list',
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText(server.name, style: AppTextStyles.serverTitle),
-          const SizedBox(height: AppSpacing.md),
-          SelectableText(server.address),
-          const SizedBox(height: AppSpacing.sm),
-          AppText('Port: ${server.port}'),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const AppText('Close'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(dialogContext);
-            _copy(context, server.address, 'Server address copied');
-          },
-          child: const AppText('Copy address'),
-        ),
-      ],
-    ),
+    builder: (_) =>
+        ServerConnectionDialog(server: server, onCopy: _copyAddress),
   );
 
-  Future<void> _website(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final uri = Uri.tryParse(server.website.trim());
-    if (uri == null ||
-        !const {'http', 'https'}.contains(uri.scheme.toLowerCase()) ||
-        uri.host.isEmpty) {
-      _showWebsiteError(messenger);
-      return;
-    }
-
+  Future<void> _website() async {
+    if (_openingWebsite) return;
+    setState(() => _openingWebsite = true);
     try {
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        _showWebsiteError(messenger);
+      final url = Uri.parse(server.website);
+      if (!['https', 'http'].contains(url.scheme) ||
+          url.host.isEmpty ||
+          !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('Server website could not be opened');
       }
-    } catch (error, stackTrace) {
-      debugPrint('Server website could not be opened: $error\n$stackTrace');
-      _showWebsiteError(messenger);
+    } catch (error) {
+      debugPrint('Server website unavailable: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: AppText('Unable to open this website. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _openingWebsite = false);
     }
   }
 
-  void _showWebsiteError(ScaffoldMessengerState messenger) {
-    if (!messenger.mounted) return;
-    messenger.showSnackBar(
-      const SnackBar(content: AppText('Unable to open server website.')),
-    );
-  }
-
-  void _share(BuildContext context) => showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      child: SingleChildScrollView(
-        padding: AppInsets.screen,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppText(server.name, style: AppTextStyles.dialogTitle),
-            const SizedBox(height: AppSpacing.md),
-            ListTile(
-              leading: const Icon(Icons.copy_outlined),
-              title: const AppText('Copy server address'),
-              subtitle: AppText(server.address),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _copy(context, server.address, 'Server address copied');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.link),
-              title: const AppText('Copy website link'),
-              subtitle: AppText(server.website),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _copy(context, server.website, 'Website link copied');
-              },
-            ),
-          ],
+  Future<void> _share(BuildContext context) async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    final origin = context.findRenderObject() as RenderBox;
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text:
+              '${server.name}\nJava: ${server.javaAddress}:${server.javaPort}\nBedrock: ${server.address}:${server.port}\n${server.website}',
+          subject: server.name,
+          sharePositionOrigin: origin.localToGlobal(Offset.zero) & origin.size,
         ),
-      ),
-    ),
-  );
+      );
+    } catch (error) {
+      debugPrint('Server sharing unavailable: $error');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: AppText('Unable to share this server. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
 
   ButtonStyle _outline(Color border) => OutlinedButton.styleFrom(
     foregroundColor: AppColors.onPrimary,
     minimumSize: const Size(0, 50),
     side: BorderSide(color: border, width: 2),
-    shape: const RoundedRectangleBorder(),
+    shape: const PixelBorder(),
     padding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.md,
       vertical: AppSpacing.md,
@@ -144,22 +128,21 @@ class ServerInfoPage extends StatelessWidget {
       key: const ValueKey('server-info-preview'),
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: AppColors.surface,
-          surfaceTintColor: AppColors.surface,
+          backgroundColor: AppColors.cave,
+          surfaceTintColor: AppColors.transparent,
           systemOverlayStyle: AppTheme.systemUi,
           centerTitle: true,
-          leadingWidth: 92,
-          leading: TextButton.icon(
-            key: const ValueKey('server-info-back'),
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.serverNavigation,
-              padding: EdgeInsets.zero,
+          toolbarHeight: 64,
+          leadingWidth: 72,
+          leading: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: GameBackButton(
+              key: const ValueKey('server-info-back'),
+              size: 48,
+              onPressed: () => Navigator.pop(context),
             ),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 24),
-            label: const AppText('Main', style: AppTextStyles.body),
           ),
-          title: const AppText('Server Info', style: AppTextStyles.serverTitle),
+          title: const AppText('Server Info', style: AppTextStyles.itemTitle),
         ),
         body: Stack(
           fit: StackFit.expand,
@@ -177,13 +160,13 @@ class ServerInfoPage extends StatelessWidget {
                 key: const PageStorageKey('server-info-scroll'),
                 child: Column(
                   children: [
-                    _banner(),
+                    ServerBanner(server: server),
                     ColoredBox(
                       color: AppColors.serverHero,
                       child: LayoutBuilder(
                         builder: (context, constraints) => Padding(
                           padding: EdgeInsets.symmetric(
-                            horizontal: constraints.maxWidth * .14,
+                            horizontal: 18,
                             vertical: AppSpacing.lg,
                           ),
                           child: Column(
@@ -193,6 +176,33 @@ class ServerInfoPage extends StatelessWidget {
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.serverInfoTitle,
                               ),
+                              const SizedBox(height: AppSpacing.sm),
+                              Center(
+                                child: ServerStatus(
+                                  server: server,
+                                  compact: false,
+                                ),
+                              ),
+                              if (server.version != null)
+                                AppText(
+                                  'Version: ${server.version}',
+                                  style: AppTextStyles.body.copyWith(
+                                    color: AppColors.caveMuted,
+                                  ),
+                                ),
+                              if (server.motd?.isNotEmpty == true)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: AppText(
+                                    server.motd!,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.caveMuted,
+                                    ),
+                                  ),
+                                ),
                               const SizedBox(height: AppSpacing.sm),
                               Wrap(
                                 alignment: WrapAlignment.center,
@@ -241,24 +251,30 @@ class ServerInfoPage extends StatelessWidget {
                                       key: const ValueKey(
                                         'server-copy-address',
                                       ),
-                                      onPressed: () => _copy(
-                                        context,
-                                        server.address,
-                                        'Server address copied',
-                                      ),
+                                      onPressed: _copyAddress,
                                       style: _outline(AppColors.onPrimary),
                                       child: Row(
                                         children: [
                                           Expanded(
                                             child: AppText(
-                                              server.address,
+                                              _copied
+                                                  ? 'COPIED!'
+                                                  : server.address,
+                                              textAlign: _copied
+                                                  ? TextAlign.center
+                                                  : TextAlign.start,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           const SizedBox(width: AppSpacing.xs),
-                                          const Icon(
-                                            Icons.content_copy,
+                                          Icon(
+                                            _copied
+                                                ? Icons.check_circle
+                                                : Icons.content_copy,
+                                            color: _copied
+                                                ? AppColors.serverAction
+                                                : AppColors.onPrimary,
                                             size: 18,
                                           ),
                                         ],
@@ -268,14 +284,18 @@ class ServerInfoPage extends StatelessWidget {
                                   const SizedBox(width: AppSpacing.xs),
                                   SizedBox(
                                     width: 50,
-                                    child: OutlinedButton(
-                                      key: const ValueKey('server-share'),
-                                      onPressed: () => _share(context),
-                                      style: _outline(AppColors.onPrimary),
-                                      child: const Icon(
-                                        Icons.share,
-                                        size: 23,
-                                        semanticLabel: 'Share server',
+                                    child: Builder(
+                                      builder: (shareContext) => OutlinedButton(
+                                        key: const ValueKey('server-share'),
+                                        onPressed: _sharing
+                                            ? null
+                                            : () => _share(shareContext),
+                                        style: _outline(AppColors.onPrimary),
+                                        child: const Icon(
+                                          Icons.share,
+                                          size: 23,
+                                          semanticLabel: 'Share server',
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -292,7 +312,9 @@ class ServerInfoPage extends StatelessWidget {
                       ),
                       child: FilledButton(
                         key: const ValueKey('server-website'),
-                        onPressed: () => _website(context),
+                        onPressed: _openingWebsite || server.website.isEmpty
+                            ? null
+                            : _website,
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.serverAction,
                           foregroundColor: AppColors.onPrimary,
@@ -324,7 +346,7 @@ class ServerInfoPage extends StatelessWidget {
                           color: AppColors.oreRowBorder,
                           width: 3,
                         ),
-                        borderRadius: AppRadii.card,
+                        borderRadius: AppRadii.standard,
                       ),
                       child: AppText(
                         [
@@ -337,6 +359,15 @@ class ServerInfoPage extends StatelessWidget {
                         style: AppTextStyles.serverInfoBody,
                       ),
                     ),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.xl,
+                      ),
+                      child: SpecialOfferAd(),
+                    ),
                   ],
                 ),
               ),
@@ -346,26 +377,4 @@ class ServerInfoPage extends StatelessWidget {
       ),
     ),
   );
-
-  Widget _banner() {
-    final banner = server.bannerUrl;
-    final fallback = Image.asset(server.bannerImage, fit: BoxFit.cover);
-
-    return AspectRatio(
-      aspectRatio: 8,
-      child: banner == null
-          ? fallback
-          : banner.path.toLowerCase().endsWith('.svg')
-          ? SvgPicture.network(
-              banner.toString(),
-              fit: BoxFit.cover,
-              placeholderBuilder: (_) => fallback,
-            )
-          : Image.network(
-              banner.toString(),
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => fallback,
-            ),
-    );
-  }
 }

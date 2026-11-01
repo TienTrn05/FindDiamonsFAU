@@ -1,5 +1,7 @@
+import '../../../core/network/app_image_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../common/widgets/mining_surface.dart';
 
 import '../../../common/widgets/app_text.dart';
 import '../../../core/theme/app_colors.dart';
@@ -42,9 +44,8 @@ class SeedMapCard extends StatelessWidget {
     ].join(' · ');
     return Material(
       color: AppColors.oreRow,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadii.card,
-        side: const BorderSide(color: AppColors.oreRowBorder, width: 3),
+      shape: const PixelBorder(
+        side: BorderSide(color: AppColors.helpBorder, width: 1.5),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -55,8 +56,8 @@ class SeedMapCard extends StatelessWidget {
             aspectRatio: 2,
             child: item.coverUrl == null
                 ? Image.asset(item.cover, fit: BoxFit.cover)
-                : Image.network(
-                    item.coverUrl!,
+                : Image(
+                    image: AppNetworkImage(item.coverUrl!),
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) =>
                         Image.asset(item.cover, fit: BoxFit.cover),
@@ -97,8 +98,9 @@ class SeedMapCard extends StatelessWidget {
                       Expanded(
                         child: AppText(
                           'Seed: ${item.seed}',
-                          style: AppTextStyles.itemTitle.copyWith(
-                            color: AppColors.textMuted,
+                          style: AppTextStyles.fieldValue.copyWith(
+                            color: AppColors.primary,
+                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -125,10 +127,7 @@ class SeedMapCard extends StatelessWidget {
                 ],
                 AppText(
                   item.description,
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 16,
-                    height: 1.25,
-                  ),
+                  style: AppTextStyles.body.copyWith(fontSize: 14, height: 1.5),
                 ),
               ],
             ),

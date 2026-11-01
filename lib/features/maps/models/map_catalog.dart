@@ -73,6 +73,7 @@ class MapCatalog {
     required this.categories,
     required this.initialCategory,
     required this.items,
+    this.seedVersions = const {},
   });
   factory MapCatalog.fromJson(Map<String, dynamic> json) => MapCatalog(
     title: json['title'] as String,
@@ -86,4 +87,5 @@ class MapCatalog {
   final List<String> categories;
   final String initialCategory;
   final List<MapItem> items;
+  final Map<String, List<String>> seedVersions;
 }

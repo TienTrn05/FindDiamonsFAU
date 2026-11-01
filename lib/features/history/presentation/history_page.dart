@@ -1,12 +1,15 @@
 import '../../../common/widgets/app_text.dart';
 import 'package:flutter/material.dart';
-import '../../../common/widgets/landscape_background.dart';
-import '../../../common/widgets/ore_art.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
+import '../../../common/widgets/game_header.dart';
+import '../../../common/widgets/ore_display.dart';
+import '../../../common/widgets/mining_neon_panel.dart';
+import '../../../core/theme/mining_style.dart';
 import '../../../common/widgets/resource_view.dart';
 import '../../digging/presentation/found_ores_page.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/monetization/app_monetization.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../bloc/history_bloc.dart';
 import '../models/history_data.dart';
@@ -18,10 +21,12 @@ class HistoryPage extends StatelessWidget {
     required this.controller,
     required this.onGoPro,
     required this.onHelp,
+    this.onFind,
   });
   final HistoryBloc controller;
   final VoidCallback onGoPro;
   final VoidCallback onHelp;
+  final VoidCallback? onFind;
 
   Future<void> _remove(BuildContext context, String id) async {
     try {
@@ -53,47 +58,47 @@ class HistoryPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => LandscapeBackground(
-    washed: true,
-    child: SafeArea(
-      bottom: false,
-      child: ResourceView<HistoryData>(
-        controller: controller,
-        builder: (context, data) {
-          if (data.searches.isEmpty) {
-            return Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.lg),
-                child: ColoredBox(
-                  color: AppColors.heroScrim,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: AppText(
-                      data.emptyMessage,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.body,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            itemCount: data.searches.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-            itemBuilder: (context, index) {
-              final record = data.searches[index];
-              return _HistoryCard(
-                record: record,
-                onTap: () => _open(context, record),
-                onDelete: () => _remove(context, record.id),
+  Widget build(BuildContext context) => MiningBackground(
+    vivid: true,
+    child: Column(
+      children: [
+        const GameHeader(
+          title: 'History',
+          contentHeight: 82,
+          subtitle: 'Your discoveries, all in one place.',
+          icon: Icons.menu_book_outlined,
+        ),
+        Expanded(
+          child: ResourceView<HistoryData>(
+            controller: controller,
+            builder: (context, data) {
+              if (data.searches.isEmpty) {
+                return MiningEmptyState(
+                  title: data.emptyMessage,
+                  icon: Icons.explore_outlined,
+                  message: 'Start a search to build your expedition log.',
+                  action: onFind == null ? null : 'Find Ore',
+                  onAction: onFind,
+                );
+              }
+              return ListView.separated(
+                key: const PageStorageKey('history-list'),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                itemCount: data.searches.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 9),
+                itemBuilder: (context, index) {
+                  final record = data.searches[index];
+                  return _HistoryCard(
+                    record: record,
+                    onTap: () => _open(context, record),
+                    onDelete: () => _remove(context, record.id),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -104,102 +109,126 @@ class _HistoryCard extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
   });
-
   final SearchRecord record;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-
-  Widget _coordinate(String axis, int value, double maxWidth) => ConstrainedBox(
-    constraints: BoxConstraints(maxWidth: maxWidth),
-    child: Text(
-      '$axis: $value',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: AppTextStyles.historyCard,
-    ),
-  );
-
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.oreRow,
-    shape: RoundedRectangleBorder(
-      borderRadius: AppRadii.card,
-      side: const BorderSide(color: AppColors.oreRowBorder, width: 3),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: ListTile(
+  Widget build(BuildContext context) => MiningNeonPanel(
+    accent: MiningStyle.oreAccent(record.oreId),
+    rail: true,
+    padding: const EdgeInsets.fromLTRB(10, 8, 9, 8),
+    child: InkWell(
       key: ValueKey('history-${record.id}'),
       onTap: onTap,
-      isThreeLine: true,
-      titleAlignment: ListTileTitleAlignment.center,
-      contentPadding: const EdgeInsets.all(AppSpacing.md),
-
-      leading: Semantics(
-        label: context.tr(record.oreName),
-        image: true,
-        child: OreIcon(
-          ore: Ore.values.firstWhere(
-            (ore) => ore.name == record.oreId,
-            orElse: () => Ore.diamond,
+      child: Row(
+        children: [
+          Semantics(
+            label: context.tr(record.oreName),
+            image: true,
+            child: OreDisplay(id: record.oreId, size: 66),
           ),
-          size: 44,
-        ),
-      ),
-
-      title: LayoutBuilder(
-        builder: (context, constraints) => Table(
-          columnWidths: const {0: FlexColumnWidth(), 1: IntrinsicColumnWidth()},
-          defaultVerticalAlignment: TableCellVerticalAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            TableRow(
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const AppText('Seed:', style: AppTextStyles.historyCard),
-                _coordinate('X', record.playerX, constraints.maxWidth * .45),
-              ],
-            ),
-            TableRow(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: AppSpacing.xs,
-                    right: AppSpacing.sm,
-                  ),
-                  child: Text(
-                    record.seed,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.fieldValue,
+                AppText(
+                  record.oreName,
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onPrimary,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: _coordinate(
-                    'Z',
-                    record.playerZ,
-                    constraints.maxWidth * .45,
+                AppText(
+                  'Version: ${record.version}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 11,
+                    color: AppColors.caveMuted,
                   ),
+                ),
+                Row(
+                  children: [
+                    AppText(
+                      'Seed:',
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 11,
+                        color: AppColors.caveMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        record.seed,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 11,
+                          color: AppColors.caveMuted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Expanded(
+                      child: MiningTag(
+                        'X: ${record.playerX}',
+                        icon: Icons.my_location,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: MiningTag(
+                        'Z: ${record.playerZ}',
+                        icon: Icons.my_location,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.sm),
-        child: AppText(
-          'Version: ${record.version}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.historyCard,
-        ),
-      ),
-
-      trailing: const Icon(
-        Icons.chevron_right,
-        size: 26,
-        color: AppColors.text,
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              SizedBox.square(
+                dimension: 34,
+                child: IconButton(
+                  key: ValueKey('history-delete-${record.id}'),
+                  tooltip: context.tr('Delete search'),
+                  onPressed: onDelete,
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(
+                    Icons.delete_forever,
+                    color: AppColors.caveMuted,
+                    size: 21,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox.square(
+                dimension: 32,
+                child: Material(
+                  color: AppColors.primary,
+                  shape: const PixelBorder(step: 4),
+                  child: InkWell(
+                    onTap: onTap,
+                    child: const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.cave,
+                      size: 27,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     ),
   );

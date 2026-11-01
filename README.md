@@ -1,5 +1,9 @@
 # Find Diamonds
 
+> Servers API localhost / Android: [banner, trạng thái và cấu hình kết nối](docs/servers-local-api.md).
+
+> Dashboard / Digging redesign: [navigation, shared theme and ore picker](docs/dashboard-digging-design.md).
+
 > Cập nhật Find/Pro/rewarded ads: xem [hướng dẫn test và cấu hình phát hành](docs/monetization.md). Show another đã nối SDK AdMob; thanh toán thật vẫn cần dịch vụ billing và xác minh entitlement.
 
 Flutter UI dựng theo ảnh tham chiếu: onboarding và năm tab Find, History, Skins, Servers, Maps. Dữ liệu JSON được đóng gói trong ứng dụng, không gọi API.

@@ -1,8 +1,8 @@
-import '../../../common/widgets/app_text.dart';
 import 'package:flutter/material.dart';
-
+import '../../../common/widgets/app_text.dart';
 import '../../../common/widgets/ore_art.dart';
-import '../../../common/widgets/responsive_canvas.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_components.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -11,75 +11,142 @@ import '../../../core/theme/game_text_styles.dart';
 
 class TutorialPageOne extends StatelessWidget {
   const TutorialPageOne({super.key});
-
   @override
-  Widget build(BuildContext context) => ResponsiveCanvas(
-    fit: BoxFit.fill,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 342, child: _GameSettingsPreview()),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.contentInset,
-            26,
-            AppSpacing.contentInset,
-            0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppText('Step 1', style: AppTextStyles.tutorialTitle),
-              const SizedBox(height: AppSpacing.md),
-              const AppText(
-                'Welcome to Find Diamonds!\nHow to use the app: in Minecraft Bedrock or Java, find your world’s seed and player current coordinates (x, y, z)',
-                style: AppTextStyles.tutorialBody,
-              ),
-            ],
-          ),
-        ),
-      ],
+  Widget build(BuildContext context) => const _TutorialChapter(
+    step: 1,
+    title: 'Find your bearings',
+    message:
+        'Welcome to Find Diamonds!\nHow to use the app: in Minecraft Bedrock or Java, find your world’s seed and player current coordinates (x, y, z)',
+    illustration: SizedBox(
+      width: 374,
+      height: 342,
+      child: _GameSettingsPreview(),
     ),
   );
 }
 
 class TutorialPageTwo extends StatelessWidget {
   const TutorialPageTwo({super.key});
-
   @override
-  Widget build(BuildContext context) => ResponsiveCanvas(
-    fit: BoxFit.fill,
+  Widget build(BuildContext context) => const _TutorialChapter(
+    step: 2,
+    title: 'Choose your treasure',
+    message: 'Enter the details into the app',
+    illustration: _WorldDetailsPreview(),
+  );
+}
+
+class _TutorialChapter extends StatelessWidget {
+  const _TutorialChapter({
+    required this.step,
+    required this.title,
+    required this.message,
+    required this.illustration,
+  });
+  final int step;
+  final String title;
+  final String message;
+  final Widget illustration;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: (constraints.maxHeight * .54).clamp(130.0, 310.0),
+            child: ClipPath(
+              clipper: ShapeBorderClipper(shape: const PixelBorder()),
+              child: FittedBox(fit: BoxFit.contain, child: illustration),
+            ),
+          ),
+          const SizedBox(height: 24),
+          MiningTag('Step $step', icon: Icons.explore_outlined),
+          const SizedBox(height: 12),
+          AppText(
+            title,
+            style: AppTextStyles.title.copyWith(
+              fontSize: 26,
+              color: AppColors.text,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppText(
+            message,
+            style: AppTextStyles.body.copyWith(color: AppColors.caveMuted),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _WorldDetailsPreview extends StatelessWidget {
+  const _WorldDetailsPreview();
+  Widget _line(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 438, child: _SeedPreview()),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.contentInset,
-            25,
-            AppSpacing.contentInset,
-            0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        AppText(
+          label,
+          style: AppTextStyles.pixelLabel.copyWith(color: AppColors.caveMuted),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: AppColors.cave,
+          child: AppText(value, style: AppTextStyles.fieldValue),
+        ),
+      ],
+    ),
+  );
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 320,
+    child: MiningPanel(
+      borderColor: AppColors.primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              AppText('Step 2', style: AppTextStyles.tutorialTitle),
-              SizedBox(height: 10),
-              AppText(
-                'Enter the details into the app',
-                style: AppTextStyles.tutorialBodyRelaxed,
+              Expanded(child: _line('Player X', '1000')),
+              const SizedBox(width: 12),
+              Expanded(child: _line('Player Z', '-500')),
+            ],
+          ),
+          _line('World seed (numbers/letters)', '36643745'),
+          _line('Version (Scroll to change)', '1.21 Java'),
+          const Row(
+            children: [
+              OreIcon(size: 48),
+              SizedBox(width: 12),
+              Expanded(
+                child: AppText('Diamond', style: AppTextStyles.pixelTitle),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: AppColors.primary,
+            child: const AppText(
+              'Start digging',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.onPrimaryPixelBody,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
 
 class TutorialPageThree extends StatefulWidget {
   const TutorialPageThree({super.key});
-
   @override
   State<TutorialPageThree> createState() => _TutorialPageThreeState();
 }
@@ -93,104 +160,76 @@ class _TutorialPageThreeState extends State<TutorialPageThree> {
     (10, 79, 41, 6),
     (6, 48, 40, 1),
   ];
-
   @override
-  Widget build(BuildContext context) => ResponsiveCanvas(
-    fit: BoxFit.fill,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.contentInset,
-            AppSpacing.cardInset,
-            AppSpacing.contentInset,
-            14,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppText('Step 3', style: AppTextStyles.tutorialTitle),
-              SizedBox(height: 10),
-              AppText(
-                'Your ores have been found! Go to the listed coordinates to find them. Keep track by tapping the checkbox next to each ore.',
-                style: AppTextStyles.tutorialBodyCompact,
-              ),
-            ],
-          ),
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(18),
+    children: [
+      const MiningTag('Step 3', icon: Icons.explore_outlined),
+      const SizedBox(height: 12),
+      AppText(
+        'Follow the coordinates',
+        style: AppTextStyles.title.copyWith(
+          fontSize: 25,
+          color: AppColors.text,
+          fontWeight: FontWeight.w700,
         ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 5),
-            itemCount: _coordinates.length,
-            separatorBuilder: (_, index) => const SizedBox(height: 5),
-            itemBuilder: (context, index) {
-              final row = _coordinates[index];
-              return Semantics(
-                label:
-                    'Ore ${index + 1}: X ${row.$1}, Y ${row.$2}, Z ${row.$3}',
-                checked: _checked[index],
-                child: InkWell(
-                  key: ValueKey('ore-row-$index'),
-                  onTap: () =>
-                      setState(() => _checked[index] = !_checked[index]),
-                  borderRadius: AppRadii.row,
-                  child: Container(
-                    height: 83,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.oreRow,
-                      border: Border.all(
-                        color: AppColors.oreRowBorder,
-                        width: 3.5,
+      ),
+      const SizedBox(height: 10),
+      AppText(
+        'Your ores have been found! Go to the listed coordinates to find them. Keep track by tapping the checkbox next to each ore.',
+        style: AppTextStyles.body.copyWith(color: AppColors.caveMuted),
+      ),
+      const SizedBox(height: 20),
+      for (var index = 0; index < _coordinates.length; index++) ...[
+        Semantics(
+          checked: _checked[index],
+          label: context.tr('Ore {index}', args: {'index': '${index + 1}'}),
+          child: MiningPanel(
+            padding: EdgeInsets.zero,
+            child: InkWell(
+              key: ValueKey('ore-row-$index'),
+              onTap: () => setState(() => _checked[index] = !_checked[index]),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const OreIcon(size: 38),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 12,
+                        runSpacing: 5,
+                        children: [
+                          AppText(
+                            'X: ${_coordinates[index].$1}',
+                            style: AppTextStyles.pixelLabel,
+                          ),
+                          AppText(
+                            'Y: ${_coordinates[index].$2}',
+                            style: AppTextStyles.pixelLabel,
+                          ),
+                          AppText(
+                            'Z: ${_coordinates[index].$3}',
+                            style: AppTextStyles.pixelLabel,
+                          ),
+                        ],
                       ),
-                      borderRadius: AppRadii.row,
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: _checked[index]
-                                ? AppColors.primary
-                                : AppColors.transparent,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                          child: _checked[index]
-                              ? const Icon(
-                                  Icons.check_rounded,
-                                  color: AppColors.surface,
-                                  size: 18,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 13),
-                        Expanded(
-                          child: AppText(
-                            'X: ${row.$1}   Y: ${row.$2}   Z: ${row.$3}',
-                            style: AppTextStyles.pixelBodyLarge,
-                          ),
-                        ),
-                        OreIcon(
-                          ore: index == 1 ? Ore.diamond : Ore.copper,
-                          size: 35,
-                        ),
-                        AppText(' x${row.$4}', style: AppTextStyles.pixelCount),
-                      ],
+                    Checkbox(
+                      value: _checked[index],
+                      activeColor: AppColors.primary,
+                      onChanged: (value) =>
+                          setState(() => _checked[index] = value ?? false),
                     ),
-                  ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
+        const SizedBox(height: 10),
       ],
-    ),
+    ],
   );
 }
 
@@ -317,7 +356,13 @@ class _GameSettingsPreview extends StatelessWidget {
           children: [
             Icon(icon, color: GamePalette.icon, size: 14),
             const SizedBox(width: 9),
-            AppText(text, style: GameTextStyles.control),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: AppText(text, style: GameTextStyles.control),
+              ),
+            ),
           ],
         ),
       );
@@ -338,7 +383,13 @@ class _GameSettingsPreview extends StatelessWidget {
               const Icon(Icons.star, color: GamePalette.star, size: 15),
               const SizedBox(width: AppSpacing.xs),
             ],
-            AppText(text, style: GameTextStyles.input),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: AppText(text, style: GameTextStyles.input),
+              ),
+            ),
           ],
         ),
       );
@@ -361,120 +412,14 @@ class _GameSettingsPreview extends StatelessWidget {
           child: const ColoredBox(color: GamePalette.toggleThumb),
         ),
         const SizedBox(width: 5),
-        AppText(label),
-      ],
-    ),
-  );
-}
-
-class _SeedPreview extends StatelessWidget {
-  const _SeedPreview();
-
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: GamePalette.seedBackground,
-    child: Stack(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: AppSpacing.lg),
-            _line('World seed (numbers/letters)', height: 50),
-            _line('36643745', height: 52),
-            _line('Version (Scroll to change)', height: 48),
-            _line('1.18 Bedrock', height: 52, dropdown: true),
-            const SizedBox(height: 15),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(Icons.arrow_left, size: 55, color: GamePalette.arrow),
-                Column(
-                  children: [
-                    OreIcon(ore: Ore.lapis, size: 57),
-                    AppText('Lapis', style: AppTextStyles.pixelTitle),
-                  ],
-                ),
-                Icon(Icons.arrow_right, size: 55, color: GamePalette.arrow),
-              ],
-            ),
-            const SizedBox(height: 9),
-            Container(height: 54, color: GamePalette.adBanner),
-            const SizedBox(height: 10),
-            Container(
-              height: 36,
-              color: GamePalette.action,
-              alignment: Alignment.center,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AppText(
-                    'Start digging',
-                    style: AppTextStyles.onPrimaryPixelField,
-                  ),
-                  SizedBox(width: 6),
-                  Icon(Icons.arrow_forward, size: 23, color: AppColors.surface),
-                ],
-              ),
-            ),
-          ],
-        ),
-        Positioned(
-          top: 0,
-          left: 20,
-          right: 20,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: GamePalette.callout,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const AppText(
-              'and the version\nof your game',
-              textAlign: TextAlign.center,
-              style: GameTextStyles.callout,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 14,
-          left: 12,
-          right: 12,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              AppText(
-                '(Works on EVERY\nminecraft version!)',
-                textAlign: TextAlign.center,
-                style: GameTextStyles.outlinedCallout,
-              ),
-              const AppText(
-                '(Works on EVERY\nminecraft version!)',
-                textAlign: TextAlign.center,
-                style: GameTextStyles.highlightCallout,
-              ),
-            ],
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: AppText(label),
           ),
         ),
       ],
     ),
   );
-
-  Widget _line(String label, {required double height, bool dropdown = false}) =>
-      Container(
-        height: height,
-        padding: const EdgeInsets.symmetric(horizontal: 5),
-        alignment: Alignment.centerLeft,
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: GamePalette.fieldBorder, width: 3),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(child: AppText(label, style: AppTextStyles.pixelField)),
-            if (dropdown)
-              const Icon(Icons.expand_more, size: 23, color: AppColors.border),
-          ],
-        ),
-      );
 }

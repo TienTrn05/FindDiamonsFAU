@@ -5,11 +5,14 @@ import '../../common/widgets/app_page_frame.dart';
 import '../../common/widgets/game_bottom_navigation.dart';
 import '../../common/widgets/ad_placements.dart';
 import '../../common/widgets/app_text.dart';
+import '../../common/widgets/mining_surface.dart';
 
 import '../../core/navigation/app_destination.dart';
+import '../../core/navigation/app_page_transition.dart';
 import '../../core/monetization/app_monetization.dart';
 import '../../core/models/search_record.dart';
 import '../../features/find/presentation/find_page.dart';
+import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/help/presentation/help_page.dart';
 import '../../features/history/bloc/history_bloc.dart';
 import '../../features/history/presentation/history_page.dart';
@@ -17,12 +20,13 @@ import '../../features/maps/presentation/maps_page.dart';
 import '../../features/onboarding/presentation/paywall.dart';
 import '../../features/servers/presentation/servers_page.dart';
 import '../../features/skins/presentation/skins_page.dart';
+import '../../features/skins/bloc/skins_bloc.dart';
 
 /// Only composes feature routes and owns shared session dependencies.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
-    this.initialDestination = AppDestination.find,
+    this.initialDestination = AppDestination.dashboard,
     this.repositories,
     this.monetization,
   });
@@ -33,14 +37,29 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
+class _AppShellState extends State<AppShell>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  late final _pageMotion = AnimationController(
+    vsync: this,
+    duration: AppPageTransition.duration,
+    value: 1,
+  );
   AppMonetization? _sessionAccess;
   bool _switching = false;
+  AppDestination? _queuedDestination;
+  late AppDestination _previousDestination = _selected;
+  double _pageDirection = 1;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _pageMotion.addStatusListener((status) {
+      if (status != AnimationStatus.completed) return;
+      final queued = _queuedDestination;
+      _queuedDestination = null;
+      if (queued != null && mounted) unawaited(_selectDestination(queued));
+    });
   }
 
   @override
@@ -92,12 +111,25 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Future<void> _selectDestination(AppDestination destination) async {
+    if (_pageMotion.isAnimating) {
+      _queuedDestination = destination;
+      return;
+    }
     if (_switching || _selected == destination) return;
     _switching = true;
     FocusManager.instance.primaryFocus?.unfocus();
     try {
       await _transitionAd();
-      if (mounted) setState(() => _selected = destination);
+      if (mounted) {
+        setState(() {
+          _previousDestination = _selected;
+          _pageDirection = destination.index > _selected.index ? 1 : -1;
+          _selected = destination;
+        });
+        if (!MediaQuery.disableAnimationsOf(context)) {
+          _pageMotion.forward(from: 0);
+        }
+      }
     } finally {
       _switching = false;
     }
@@ -129,8 +161,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late final AppRepositories _repositories =
       widget.repositories ?? AppRepositories();
   late final HistoryBloc _history = HistoryBloc(_repositories.history)..load();
+  late final SkinsBloc _skins = SkinsBloc(_repositories.skins)..load();
   late final List<Widget> _pages = [
+    DashboardPage(
+      onNavigate: _selectDestination,
+      onGoPro: _goPro,
+      onHelp: _help,
+    ),
     FindPage(
+      showBackground: false,
+      onBack: () => _selectDestination(AppDestination.dashboard),
       onGoPro: _goPro,
       onHelp: _help,
       onFound: _recordSearch,
@@ -138,9 +178,22 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       onFoundChanged: _history.setFound,
       repository: _repositories.find,
     ),
-    HistoryPage(controller: _history, onGoPro: _goPro, onHelp: _help),
-    SkinsPage(onGoPro: _goPro, repository: _repositories.skins),
-    ServersPage(repository: _repositories.servers),
+    HistoryPage(
+      controller: _history,
+      onGoPro: _goPro,
+      onHelp: _help,
+      onFind: () => _selectDestination(AppDestination.find),
+    ),
+    SkinsPage(onGoPro: _goPro, controller: _skins),
+    ListenableBuilder(
+      listenable: _skins,
+      builder: (_, _) => ServersPage(
+        repository: _repositories.servers,
+        initialCatalog: _repositories.initialServers,
+        prepareCatalog: _repositories.prepareServers,
+        selectedSkin: _skins.selectedOrNull,
+      ),
+    ),
     MapsPage(onGoPro: _goPro, repository: _repositories.maps),
   ];
 
@@ -182,10 +235,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _pageMotion.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _sessionAccess?.removeListener(_prepareInterstitial);
     _sessionAccess?.setForeground(false);
     _history.dispose();
+    _skins.dispose();
     _fallbackMonetization.dispose();
     super.dispose();
   }
@@ -196,33 +251,62 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     return MonetizationScope(
       controller: _monetization,
       child: PopScope(
-        canPop: _selected == AppDestination.find,
+        canPop: _selected == AppDestination.dashboard,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _selectDestination(AppDestination.find);
+          if (!didPop) _selectDestination(AppDestination.dashboard);
         },
         child: Scaffold(
           body: AppPageFrame(
-            child: Column(
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Expanded(
-                  child: IndexedStack(
-                    index: _selected.index,
-                    children: [
-                      for (final destination in AppDestination.values)
-                        TickerMode(
-                          enabled: _selected == destination,
-                          child: _pages[destination.index],
-                        ),
-                    ],
+                Positioned.fill(
+                  child: Offstage(
+                    offstage: _selected != AppDestination.find,
+                    child: const RepaintBoundary(
+                      child: MiningBackground(
+                        key: ValueKey('find-full-background'),
+                        vivid: true,
+                        bottomOpacity: .4,
+                        child: SizedBox.expand(),
+                      ),
+                    ),
                   ),
                 ),
-                if (!keyboardVisible) ...[
-                  const BannerAdSlot(),
-                  GameBottomNavigation(
-                    selected: _selected,
-                    onSelected: _selectDestination,
-                  ),
-                ],
+                Column(
+                  children: [
+                    Expanded(
+                      child: AppTabTransition(
+                        background: _selected == AppDestination.find
+                            ? null
+                            : const RepaintBoundary(
+                                child: MiningBackground(
+                                  vivid: true,
+                                  child: SizedBox.expand(),
+                                ),
+                              ),
+                        animation: _pageMotion,
+                        index: _selected.index,
+                        previousIndex: _previousDestination.index,
+                        direction: _pageDirection,
+                        children: [
+                          for (final destination in AppDestination.values)
+                            TickerMode(
+                              enabled: _selected == destination,
+                              child: _pages[destination.index],
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (!keyboardVisible) ...[
+                      const BannerAdSlot(reserveSpace: true),
+                      GameBottomNavigation(
+                        selected: _selected,
+                        onSelected: _selectDestination,
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),

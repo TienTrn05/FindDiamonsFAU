@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../../core/network/app_image_cache.dart';
 import '../../core/localization/app_translations.dart';
 
 import '../../core/theme/character_palette.dart';
@@ -73,7 +74,7 @@ class _VoxelCharacter3DState extends State<VoxelCharacter3D>
       return;
     }
 
-    final stream = NetworkImage(
+    final stream = AppNetworkImage(
       url.toString(),
     ).resolve(const ImageConfiguration());
     final listener = ImageStreamListener((info, _) {
@@ -117,9 +118,13 @@ class _VoxelCharacter3DState extends State<VoxelCharacter3D>
     hint: context.tr(
       'Drag in any direction to rotate 360 degrees. Double tap to reset.',
     ),
-    value:
-        '${(_yaw * 180 / math.pi).round() % 360} degrees horizontal, '
-        '${(_pitch * 180 / math.pi).round() % 360} degrees vertical',
+    value: context.tr(
+      '{horizontal} degrees horizontal, {vertical} degrees vertical',
+      args: {
+        'horizontal': '${(_yaw * 180 / math.pi).round() % 360}',
+        'vertical': '${(_pitch * 180 / math.pi).round() % 360}',
+      },
+    ),
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanUpdate: (details) => setState(() {

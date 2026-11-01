@@ -4,6 +4,7 @@ import 'app_colors.dart';
 
 abstract final class AppFonts {
   static const body = 'Monocraft';
+  static const reading = 'Roboto';
   static const fallback = ['Roboto'];
 }
 
@@ -17,14 +18,14 @@ abstract final class AppTextStyles {
   );
   static const fieldLabel = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: FontWeight.w700,
     color: AppColors.text,
     height: 1.15,
   );
   static const fieldValue = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: FontWeight.w400,
     color: AppColors.text,
     fontFeatures: [FontFeature.tabularFigures()],
@@ -44,7 +45,7 @@ abstract final class AppTextStyles {
   static const itemTitle = TextStyle(fontFamily: AppFonts.body, fontSize: 19);
   static const historyCard = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: FontWeight.w700,
     color: AppColors.text,
     fontFeatures: [FontFeature.tabularFigures()],
@@ -92,7 +93,12 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w800,
     color: AppColors.adAction,
   );
-  static const body = TextStyle(fontFamily: AppFonts.body, fontSize: 15);
+  static const body = TextStyle(
+    fontFamily: AppFonts.reading,
+    fontSize: 15,
+    height: 1.45,
+    color: AppColors.text,
+  );
   static const helpHeading = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: 18,
@@ -104,6 +110,19 @@ abstract final class AppTextStyles {
     fontSize: 14,
     height: 1.25,
     color: AppColors.textSecondary,
+  );
+  static const helpOnDarkBody = TextStyle(
+    fontFamily: 'Roboto',
+    fontSize: 14,
+    height: 1.5,
+    color: AppColors.stone,
+  );
+  static const helpOnDarkHeading = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+    color: AppColors.onPrimary,
   );
   static const helpAction = TextStyle(
     fontFamily: AppFonts.body,

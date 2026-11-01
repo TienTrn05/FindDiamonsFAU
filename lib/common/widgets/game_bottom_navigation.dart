@@ -36,7 +36,7 @@ class _GameBottomNavigationState extends State<GameBottomNavigation> {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
+    color: AppColors.cave,
     child: SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -64,7 +64,7 @@ class _GameBottomNavigationState extends State<GameBottomNavigation> {
                       onTap: () => widget.onSelected(destination),
                       onHighlightChanged: (highlighted) =>
                           _highlight(destination, highlighted),
-                      borderRadius: AppRadii.pill,
+                      borderRadius: AppRadii.small,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 160),
                         padding: const EdgeInsets.symmetric(
@@ -72,15 +72,35 @@ class _GameBottomNavigationState extends State<GameBottomNavigation> {
                           horizontal: AppSpacing.xs,
                         ),
                         decoration: BoxDecoration(
+                          gradient: widget.selected == destination
+                              ? LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    AppColors.primary.withValues(alpha: .19),
+                                    AppColors.cavePanel,
+                                  ],
+                                )
+                              : null,
+                          border: widget.selected == destination
+                              ? Border.all(
+                                  color: AppColors.primary.withValues(
+                                    alpha: .65,
+                                  ),
+                                )
+                              : null,
                           color: widget.selected == destination
-                              ? AppColors.navigationSelected
+                              ? AppColors.cavePanel
                               : AppColors.transparent,
-                          borderRadius: AppRadii.pill,
+                          borderRadius: AppRadii.small,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            GameNavIcon(destination: destination),
+                            GameNavIcon(
+                              destination: destination,
+                              selected: widget.selected == destination,
+                            ),
                             const SizedBox(height: AppSpacing.xs),
                             SizedBox(
                               width: double.infinity,
@@ -99,7 +119,7 @@ class _GameBottomNavigationState extends State<GameBottomNavigation> {
                                                 ? AppColors.onPrimary
                                                 : widget.selected == destination
                                                 ? AppColors.primary
-                                                : AppColors.text,
+                                                : AppColors.caveMuted,
                                             shadows: _pressed == destination
                                                 ? [
                                                     Shadow(

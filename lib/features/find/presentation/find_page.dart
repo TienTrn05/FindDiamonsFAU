@@ -2,24 +2,22 @@ import '../../../common/widgets/app_text.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../../common/widgets/app_button.dart';
+import '../../../common/widgets/mining_surface.dart';
+import '../../../common/widgets/mining_art.dart';
 import '../../../common/widgets/digging_pickaxe.dart';
-import '../../../common/widgets/game_header.dart';
 import '../../../common/widgets/game_text_field.dart';
 import '../../../common/widgets/ore_art.dart';
 import '../../../common/widgets/resource_view.dart';
-import '../../../core/responsive/app_layout.dart';
 import '../../digging/presentation/found_ores_page.dart';
 import '../../../core/models/search_record.dart';
 import '../../../core/monetization/app_monetization.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mining_style.dart';
+import '../../../common/widgets/mining_viewport.dart';
 import '../bloc/find_bloc.dart';
 import '../data/api_find_repository.dart';
 import '../data/find_repository.dart';
 import '../models/find_catalog.dart';
+import 'ore_picker_page.dart';
 
 class FindPage extends StatefulWidget {
   const FindPage({
@@ -30,6 +28,8 @@ class FindPage extends StatefulWidget {
     this.onReveal,
     this.onFoundChanged,
     this.repository,
+    this.onBack,
+    this.showBackground = true,
   });
   final VoidCallback onGoPro;
   final VoidCallback onHelp;
@@ -37,6 +37,8 @@ class FindPage extends StatefulWidget {
   final Future<void> Function(String id, int count)? onReveal;
   final Future<void> Function(String id, int index, bool found)? onFoundChanged;
   final FindRepository? repository;
+  final VoidCallback? onBack;
+  final bool showBackground;
   @override
   State<FindPage> createState() => _FindPageState();
 }
@@ -45,7 +47,6 @@ class _FindPageState extends State<FindPage> {
   late final FindBloc _bloc = FindBloc(widget.repository ?? ApiFindRepository())
     ..load();
   final _form = GlobalKey<FormState>();
-  final _digging = GlobalKey();
   final _x = TextEditingController();
   final _z = TextEditingController();
   final _seed = TextEditingController();
@@ -85,16 +86,6 @@ class _FindPageState extends State<FindPage> {
   Future<void> _search() async {
     if (_bloc.searching || !_form.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final loaderContext = _digging.currentContext;
-      if (mounted && loaderContext != null) {
-        Scrollable.ensureVisible(
-          loaderContext,
-          duration: const Duration(milliseconds: 180),
-          alignment: .5,
-        );
-      }
-    });
     try {
       final record = await _bloc.search(
         x: int.parse(_x.text.trim()),
@@ -137,203 +128,419 @@ class _FindPageState extends State<FindPage> {
     }
   }
 
+  Future<void> _changeOre() async {
+    final id = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: '/find/ores'),
+        builder: (_) =>
+            OrePickerPage(ores: _bloc.availableOres, selectedId: _bloc.ore.id),
+      ),
+    );
+    if (mounted && id != null) _bloc.selectOre(id);
+  }
+
+  static InputDecoration _input(bool compact) => InputDecoration(
+    isDense: true,
+    filled: true,
+    fillColor: Color(0xFFF7F8FA),
+    contentPadding: EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: compact ? 7 : 10,
+    ),
+    hintStyle: TextStyle(
+      color: const Color(0xFF989EAA),
+      fontSize: compact ? 12 : 13,
+    ),
+    helperText: compact ? null : ' ',
+    helperStyle: const TextStyle(fontSize: 10, height: 1),
+    errorStyle: const TextStyle(fontSize: 10, height: 1),
+    border: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(2)),
+      borderSide: BorderSide(color: MiningStyle.edge, width: 2),
+    ),
+    enabledBorder: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(2)),
+      borderSide: BorderSide(color: MiningStyle.edge, width: 2),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(2)),
+      borderSide: BorderSide(color: MiningStyle.cyan, width: 2),
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => ResourceView<FindCatalog>(
-    controller: _bloc,
-    builder: (context, catalog) => Column(
-      children: [
-        GameHeader(
-          title: catalog.title,
-          contentHeight: AppLayout.gameHeaderHeight * .6,
-        ),
-        Expanded(
-          child: Form(
-            key: _form,
-            child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              key: const PageStorageKey('find-form'),
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: GameTextField(
-                        key: const ValueKey('player-x'),
-                        label: 'Player X',
-                        controller: _x,
-                        numeric: true,
-                        readOnly: _bloc.searching,
-                        validator: _coordinate,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: GameTextField(
-                        key: const ValueKey('player-z'),
-                        label: 'Player Z',
-                        controller: _z,
-                        numeric: true,
-                        readOnly: _bloc.searching,
-                        validator: _coordinate,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                GameTextField(
-                  key: const ValueKey('world-seed'),
-                  label: 'World seed (numbers/letters)',
-                  controller: _seed,
-                  readOnly: _bloc.searching,
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter your world seed'
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                const AppText(
-                  'Version (Scroll to change)',
-                  style: AppTextStyles.fieldLabel,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                DropdownButtonFormField<String>(
-                  key: const ValueKey('game-version'),
-                  initialValue: _bloc.version.id,
-                  isExpanded: true,
-                  decoration: AppTheme.gameInputDecoration,
-                  style: AppTextStyles.fieldValue,
-                  items: catalog.versions
-                      .map(
-                        (version) => DropdownMenuItem(
-                          key: ValueKey('game-version-${version.id}'),
-                          value: version.id,
-                          child: AppText(
-                            '${version.apiVersion} Java',
-                            style: AppTextStyles.fieldValue,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    final content = ResourceView<FindCatalog>(
+      controller: _bloc,
+      builder: (context, catalog) => SafeArea(
+        bottom: false,
+        child: Form(
+          key: _form,
+          child: MiningViewport(
+            minimumHeight: 730,
+            compactHeight: 560,
+            builder: (context, landscape, compact) => Padding(
+              padding: EdgeInsets.fromLTRB(
+                14,
+                compact ? 8 : 12,
+                14,
+                compact ? 8 : 12,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact),
+                  SizedBox(height: compact ? 8 : 14),
+                  Expanded(
+                    child: landscape
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                flex: 6,
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: _world(catalog, compact),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                flex: 5,
+                                child: _actions(context, compact),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _world(catalog, compact),
+                              SizedBox(height: compact ? 8 : 12),
+                              Expanded(child: _actions(context, compact)),
+                            ],
                           ),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: _bloc.searching
-                      ? null
-                      : (value) {
-                          if (value != null) _bloc.selectVersion(value);
-                        },
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Row(
-                  children: [
-                    IconButton(
-                      tooltip: context.tr('Previous ore'),
-                      onPressed: _bloc.searching
-                          ? null
-                          : () => _bloc.changeOre(-1),
-                      icon: const Icon(
-                        Icons.arrow_left,
-                        size: 52,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          OreIcon(
-                            ore: Ore.values.firstWhere(
-                              (ore) => ore.name == _bloc.ore.id,
-                            ),
-                            size: 54,
-                          ),
-                          AppText(
-                            _bloc.ore.name,
-                            style: AppTextStyles.pixelTitle,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: context.tr('Next ore'),
-                      onPressed: _bloc.searching
-                          ? null
-                          : () => _bloc.changeOre(1),
-                      icon: const Icon(
-                        Icons.arrow_right,
-                        size: 52,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                if (_bloc.searching)
-                  SizedBox(
-                    key: _digging,
-                    height: 180,
-                    child: const DiggingPickaxe(),
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppButton(
-                          key: const ValueKey('open-help'),
-                          label: 'Help!',
-                          pixel: true,
-                          shadow: false,
-                          backgroundColor: AppColors.danger,
-                          onPressed: widget.onHelp,
-                        ),
-                      ),
-                      if (MonetizationScope.maybeOf(context)?.isPro !=
-                          true) ...[
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          flex: 2,
-                          child: AppButton(
-                            key: const ValueKey('open-premium'),
-                            label: 'Go Pro!',
-                            leading: const Icon(
-                              Icons.diamond,
-                              color: AppColors.indicatorActive,
-                              size: 26,
-                            ),
-                            trailing: const Icon(
-                              Icons.diamond,
-                              color: AppColors.indicatorActive,
-                              size: 26,
-                            ),
-                            pixel: true,
-                            shadow: false,
-                            backgroundColor: AppColors.danger,
-                            onPressed: widget.onGoPro,
-                          ),
-                        ),
-                      ],
-                    ],
                   ),
-                const SizedBox(height: AppSpacing.sm),
-                AppButton(
-                  key: const ValueKey('start-digging'),
-                  label: _bloc.searching ? 'Please wait...' : 'Start digging',
-                  trailing: _bloc.searching
-                      ? null
-                      : const Icon(
-                          Icons.arrow_forward,
-                          color: AppColors.onPrimary,
-                          size: 26,
-                        ),
-                  pixel: true,
-                  shadow: false,
-                  backgroundColor: AppColors.action,
-                  onPressed: _bloc.searching ? null : _search,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return widget.showBackground
+        ? MiningBackground(vivid: true, bottomOpacity: .4, child: content)
+        : content;
+  }
+
+  Widget _header(bool compact) => SizedBox(
+    height: compact ? 44 : 56,
+    child: Row(
+      children: [
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppText('Find Ore', style: MiningStyle.heading),
+                const SizedBox(height: 6),
+                AppText(
+                  'ENTER YOUR WORLD DETAILS',
+                  style: MiningStyle.label.copyWith(
+                    color: const Color(0xFFBEC8D5),
+                    fontSize: 10,
+                    letterSpacing: 1,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
               ],
             ),
           ),
         ),
       ],
     ),
+  );
+
+  Widget _world(FindCatalog catalog, bool compact) => MiningPanel(
+    key: const ValueKey('world-information'),
+    color: MiningStyle.stone,
+    borderColor: MiningStyle.edge,
+    vivid: true,
+    padding: EdgeInsets.fromLTRB(14, compact ? 8 : 12, 14, compact ? 8 : 12),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.public, color: Color(0xFF168C39), size: 23),
+            const SizedBox(width: 10),
+            Expanded(
+              child: AppText(
+                'WORLD INFORMATION',
+                style: MiningStyle.label.copyWith(
+                  color: MiningStyle.muted,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const Divider(color: Color(0xFFCDD0D8), height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _field(
+                key: 'player-x',
+                compact: compact,
+                label: 'Player X',
+                hint: 'e.g. 1000',
+                controller: _x,
+                numeric: true,
+                icon: Icons.person,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _field(
+                key: 'player-z',
+                compact: compact,
+                label: 'Player Z',
+                hint: 'e.g. -500',
+                controller: _z,
+                numeric: true,
+                icon: Icons.person,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        _field(
+          key: 'world-seed',
+          compact: compact,
+          label: 'World seed (numbers/letters)',
+          hint: 'e.g. 123456789 or myworld',
+          controller: _seed,
+          icon: Icons.grass,
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const Icon(Icons.settings, size: 18, color: MiningStyle.muted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: AppText(
+                'Version (Scroll to change)',
+                style: MiningStyle.label,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        LayoutBuilder(
+          builder: (context, constraints) => PopupMenuButton<String>(
+            key: const ValueKey('game-version'),
+            enabled: !_bloc.searching,
+            position: PopupMenuPosition.under,
+            color: MiningStyle.stone,
+            constraints: BoxConstraints(
+              minWidth: constraints.maxWidth,
+              maxWidth: constraints.maxWidth,
+              maxHeight: 320,
+            ),
+            onSelected: _bloc.selectVersion,
+            itemBuilder: (context) => [
+              for (final version in catalog.versions)
+                PopupMenuItem<String>(
+                  key: ValueKey('game-version-${version.id}'),
+                  value: version.id,
+                  child: AppText(
+                    version.label,
+                    style: MiningStyle.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            child: InputDecorator(
+              decoration: _input(compact).copyWith(helperText: null),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AppText(
+                      _bloc.version.label,
+                      style: MiningStyle.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down, color: MiningStyle.muted),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _field({
+    required String key,
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required IconData icon,
+    bool numeric = false,
+    required bool compact,
+  }) => GameTextField(
+    key: ValueKey(key),
+    label: label,
+    hintText: hint,
+    controller: controller,
+    icon: icon,
+    iconColor: numeric ? MiningStyle.ink : MiningStyle.seedGreen,
+    numeric: numeric,
+    readOnly: _bloc.searching,
+    labelStyle: MiningStyle.label.copyWith(fontSize: compact ? 12 : 14),
+    labelSpacing: compact ? 3 : 6,
+    valueStyle: MiningStyle.label.copyWith(
+      fontSize: compact ? 13 : 14,
+      fontWeight: FontWeight.w400,
+    ),
+    decoration: _input(compact),
+    validator: numeric
+        ? _coordinate
+        : (value) => value == null || value.trim().isEmpty
+              ? 'Enter your world seed'
+              : null,
+  );
+
+  Widget _actions(BuildContext context, bool compact) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      MiningPanel(
+        key: const ValueKey('selected-ore'),
+        color: MiningStyle.stone,
+        borderColor: MiningStyle.edge,
+        vivid: true,
+        padding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: compact ? 8 : 10,
+        ),
+        child: Row(
+          children: [
+            OreIcon(
+              ore: Ore.values.firstWhere(
+                (ore) => ore.name == _bloc.ore.id,
+                orElse: () => Ore.stone,
+              ),
+              size: compact ? 40 : 58,
+              mineralTint: _bloc.ore.id == 'diamond' ? MiningStyle.cyan : null,
+              showCenterGem: false,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppText(
+                    'SELECTED ORE',
+                    style: MiningStyle.label.copyWith(
+                      color: MiningStyle.muted,
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  AppText(
+                    _bloc.ore.name,
+                    style: MiningStyle.cardTitle.copyWith(
+                      fontSize: compact ? 18 : 21,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (!compact)
+                    AppText(
+                      'Find valuable ores in your world',
+                      style: MiningStyle.body.copyWith(fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 80,
+              child: MiningButton(
+                key: const ValueKey('change-ore'),
+                label: 'Change',
+                color: MiningStyle.steel,
+                vivid: true,
+                height: compact ? 36 : 44,
+                fontSize: 12,
+                onPressed: _bloc.searching ? null : _changeOre,
+              ),
+            ),
+          ],
+        ),
+      ),
+      SizedBox(height: compact ? 8 : 14),
+      MiningButton(
+        key: const ValueKey('start-digging'),
+        label: _bloc.searching ? 'Please wait...' : 'Start digging',
+        art: SizedBox.square(
+          dimension: compact ? 28 : 42,
+          child: _bloc.searching
+              ? const DiggingPickaxe()
+              : const MiningArt(MiningArtKind.pickaxe, size: 36),
+        ),
+        trailing: _bloc.searching ? null : Icons.arrow_forward,
+        color: MiningStyle.cyan,
+        foreground: Colors.white,
+        vivid: true,
+        height: compact ? 46 : 62,
+        fontSize: compact ? 18 : 22,
+        onPressed: _bloc.searching ? null : _search,
+      ),
+      SizedBox(height: compact ? 6 : 12),
+      Row(
+        children: [
+          Expanded(
+            child: MiningButton(
+              key: const ValueKey('open-help'),
+              label: 'Help!',
+              icon: Icons.help,
+              color: MiningStyle.steel,
+              vivid: true,
+              height: compact ? 40 : 46,
+              fontSize: compact ? 12 : 14,
+              onPressed: widget.onHelp,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: MonetizationScope.maybeOf(context)?.isPro == true
+                ? const SizedBox.shrink()
+                : MiningButton(
+                    key: const ValueKey('open-premium'),
+                    label: 'Go Pro!',
+                    art: MiningArt(
+                      MiningArtKind.diamond,
+                      size: compact ? 23 : 27,
+                    ),
+                    trailing: Icons.arrow_forward,
+                    color: MiningStyle.gold,
+                    vivid: true,
+                    height: compact ? 40 : 46,
+                    fontSize: compact ? 12 : 14,
+                    onPressed: widget.onGoPro,
+                  ),
+          ),
+        ],
+      ),
+      SizedBox(height: compact ? 6 : 12),
+      const Expanded(child: SizedBox.shrink()),
+    ],
   );
 }

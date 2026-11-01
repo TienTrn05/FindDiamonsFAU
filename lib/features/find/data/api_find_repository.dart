@@ -9,7 +9,7 @@ import '../../../core/network/api_config.dart';
 import '../models/find_catalog.dart';
 import 'find_repository.dart';
 
-/// Loads the ore catalog and exact Java ore positions from the backend.
+/// Loads the ore catalog and exact ore positions from the backend.
 class ApiFindRepository extends JsonFindRepository {
   ApiFindRepository({super.source, Uri? baseUri})
     : baseUri = baseUri ?? ApiConfig.baseUri;
@@ -22,12 +22,9 @@ class ApiFindRepository extends JsonFindRepository {
 
   Future<FindCatalog> _loadApiCatalog() async {
     final bundled = await super.load();
-    final fallbackVersions = bundled.versions
-        .where((version) => version.edition == 'java')
-        .toList(growable: false);
-    final javaVersions = await _loadJavaVersions(fallbackVersions);
-    if (javaVersions.isEmpty) {
-      throw const FormatException('No Java versions are configured.');
+    final versions = await _loadVersions(bundled.versions);
+    if (versions.isEmpty) {
+      throw const FormatException('No game versions are configured.');
     }
 
     try {
@@ -46,7 +43,7 @@ class ApiFindRepository extends JsonFindRepository {
       return FindCatalog(
         title: bundled.title,
         help: bundled.help,
-        versions: javaVersions,
+        versions: versions,
         ores: ores,
         positions: bundled.positions,
       );
@@ -55,43 +52,44 @@ class ApiFindRepository extends JsonFindRepository {
       return FindCatalog(
         title: bundled.title,
         help: bundled.help,
-        versions: javaVersions,
+        versions: versions,
         ores: bundled.ores,
         positions: bundled.positions,
       );
     }
   }
 
-  Future<List<GameVersion>> _loadJavaVersions(
-    List<GameVersion> fallback,
-  ) async {
+  Future<List<GameVersion>> _loadVersions(List<GameVersion> fallback) async {
     try {
       final (statusCode, body) = await _send('/api/versions');
       if (statusCode < 200 || statusCode >= 300) {
         throw HttpException('GET /api/versions returned HTTP $statusCode');
       }
       final decoded = jsonDecode(body) as Map<String, dynamic>;
-      final rawVersions = decoded['java'];
-      if (rawVersions is! List) {
-        throw const FormatException('Invalid Java server version list.');
-      }
-      final versions = rawVersions
-          .whereType<String>()
-          .where((version) => RegExp(r'^\d+(?:\.\d+)*$').hasMatch(version))
-          .map(
-            (version) => GameVersion(
-              id: 'java_$version',
-              label: '$version Java Edition',
-              edition: 'java',
+      final versions = <GameVersion>[];
+      for (final edition in ['java', 'bedrock']) {
+        final rawVersions = decoded[edition];
+        if (rawVersions is! List) continue;
+        final seen = <String>{};
+        for (final version in rawVersions.whereType<String>()) {
+          if (!RegExp(r'^\d+(?:\.\d+)*$').hasMatch(version) ||
+              !seen.add(version)) {
+            continue;
+          }
+          versions.add(
+            GameVersion(
+              id: '${edition}_$version',
+              label:
+                  '$version ${edition == 'java' ? 'Java' : 'Bedrock'} Edition',
+              edition: edition,
               apiVersion: version,
             ),
-          )
-          .toList(growable: false);
+          );
+        }
+      }
       return versions.isEmpty ? fallback : versions;
     } catch (error) {
-      debugPrint(
-        'Java version API unavailable; using bundled versions: $error',
-      );
+      debugPrint('Version API unavailable; using bundled versions: $error');
       return fallback;
     }
   }
@@ -102,7 +100,7 @@ class ApiFindRepository extends JsonFindRepository {
         ? query.version.apiVersion
         : RegExp(r'\d+\.\d+').firstMatch(query.version.label)?.group(0) ?? '';
     if (version.isEmpty) {
-      throw const FormatException('The selected Java version is invalid.');
+      throw const FormatException('The selected game version is invalid.');
     }
 
     final uri = _uri('/api/plan');
@@ -113,7 +111,6 @@ class ApiFindRepository extends JsonFindRepository {
         'edition': query.version.edition,
         'version': version,
         'mode': 'exact',
-        'eulaAccepted': false,
         'x': query.x,
         'z': query.z,
         'ore': query.ore.id,

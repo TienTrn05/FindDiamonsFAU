@@ -7,16 +7,37 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../core/monetization/ad_units.dart';
 import '../../core/monetization/ads_runtime.dart';
 import '../../core/monetization/app_monetization.dart';
+import '../../core/monetization/banner_ad_layout.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'app_text.dart';
 
 class BannerAdSlot extends StatelessWidget {
-  const BannerAdSlot({super.key});
+  const BannerAdSlot({super.key, this.reserveSpace = false});
+
+  final bool reserveSpace;
 
   @override
-  Widget build(BuildContext context) => _placement(context, AdPlacement.banner);
+  Widget build(BuildContext context) {
+    if (!reserveSpace) return _placement(context, AdPlacement.banner);
+    final runtime = MonetizationScope.maybeOf(context)?.adsRuntime;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.floor();
+        return FutureBuilder<AdSize>(
+          future: BannerAdLayout.resolve(runtime, width),
+          initialData: BannerAdLayout.cached(runtime, width),
+          builder: (context, snapshot) => SizedBox(
+            key: const ValueKey('bottom-ad-frame'),
+            width: double.infinity,
+            height: snapshot.data!.height + AppSpacing.sm * 2,
+            child: _placement(context, AdPlacement.banner),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class SpecialOfferAd extends StatelessWidget {
@@ -151,15 +172,8 @@ class _SdkAdViewState extends State<_SdkAdView> with WidgetsBindingObserver {
         return;
       }
       if (widget.placement == AdPlacement.banner) {
-        final size =
-            await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
-              widget.width.toInt(),
-            );
+        final size = await BannerAdLayout.resolve(widget.runtime, widget.width);
         if (!mounted) return;
-        if (size == null) {
-          _scheduleRetry();
-          return;
-        }
         _height = size.height.toDouble();
         _ad = BannerAd(
           adUnitId: AdUnits.id(AdPlacement.banner),

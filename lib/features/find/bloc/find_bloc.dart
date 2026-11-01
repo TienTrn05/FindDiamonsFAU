@@ -22,19 +22,10 @@ class FindBloc extends ResourceController<FindCatalog> {
   @override
   Future<FindCatalog> fetch() async {
     final catalog = await repository.load();
-    final javaVersions = catalog.versions
-        .where((version) => version.edition == 'java')
-        .toList(growable: false);
-    if (javaVersions.isEmpty) {
-      throw const FormatException('No supported Java server versions found.');
+    if (catalog.versions.isEmpty) {
+      throw const FormatException('No supported game versions found.');
     }
-    return FindCatalog(
-      title: catalog.title,
-      help: catalog.help,
-      versions: javaVersions,
-      ores: catalog.ores,
-      positions: catalog.positions,
-    );
+    return catalog;
   }
 
   List<OreOption> get availableOres {
@@ -81,6 +72,15 @@ class FindBloc extends ResourceController<FindCatalog> {
       oreIndex = 0;
       _selectedOreId = ores.first.id;
     }
+    refresh();
+  }
+
+  void selectOre(String id) {
+    if (searching) return;
+    final index = availableOres.indexWhere((ore) => ore.id == id);
+    if (index < 0) return;
+    oreIndex = index;
+    _selectedOreId = id;
     refresh();
   }
 

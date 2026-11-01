@@ -45,3 +45,37 @@ android {
 flutter {
     source = "../.."
 }
+
+// Keep local Flutter development on the same backend as localhost:8000 in the
+// browser. This task runs on every debug build (also after restarting an AVD).
+// Production API_BASE_URL overrides and release builds remain independent.
+val connectLocalDebugApi by tasks.registering {
+    doLast {
+        val executable = if (System.getProperty("os.name").startsWith("Windows")) "adb.exe" else "adb"
+        val adb = android.sdkDirectory.resolve("platform-tools/$executable")
+        if (adb.isFile) {
+            val listing = ProcessBuilder(adb.absolutePath, "devices")
+                .redirectErrorStream(true).start()
+            val devices = listing.inputStream.bufferedReader().readText()
+            listing.waitFor()
+            devices.lineSequence().forEach { line ->
+                val parts = line.trim().split(Regex("\\s+"))
+                if (parts.size == 2 && parts[1] == "device") {
+                    val forwarding = ProcessBuilder(adb.absolutePath, "-s", parts[0],
+                        "reverse", "tcp:8000", "tcp:8000")
+                        .redirectErrorStream(true).start()
+                    val result = forwarding.inputStream.bufferedReader().readText().trim()
+                    if (forwarding.waitFor() != 0) {
+                        logger.warn("Could not connect local API for ${parts[0]}: $result")
+                    } else {
+                        logger.lifecycle("Local API connected for ${parts[0]} on port 8000")
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.matching { it.name == "preDebugBuild" }.configureEach {
+    dependsOn(connectLocalDebugApi)
+}

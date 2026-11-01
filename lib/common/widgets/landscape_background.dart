@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
+import 'mining_surface.dart';
 
 class LandscapeBackground extends StatelessWidget {
   const LandscapeBackground({
@@ -11,12 +11,5 @@ class LandscapeBackground extends StatelessWidget {
   final bool washed;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      Image.asset('assets/images/block_landscape.png', fit: BoxFit.cover),
-      if (washed) const ColoredBox(color: AppColors.landscapeWash),
-      child,
-    ],
-  );
+  Widget build(BuildContext context) => MiningBackground(child: child);
 }

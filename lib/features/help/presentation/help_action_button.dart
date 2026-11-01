@@ -1,5 +1,6 @@
 import '../../../common/widgets/app_text.dart';
 import 'package:flutter/material.dart';
+import '../../../common/widgets/mining_surface.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -21,18 +22,10 @@ class HelpActionButton extends StatelessWidget {
   final bool alignLeft;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: light ? AppColors.helpPanel : AppColors.primary,
-      borderRadius: AppRadii.standard,
-      boxShadow: const [
-        BoxShadow(
-          color: AppColors.buttonShadow,
-          blurRadius: 8,
-          offset: Offset(0, 4),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => MiningPanel(
+    color: light ? AppColors.helpRaised : AppColors.primary,
+    borderColor: light ? AppColors.helpBorder : AppColors.accent,
+    padding: EdgeInsets.zero,
     child: SizedBox(
       width: double.infinity,
       child: TextButton(
@@ -43,7 +36,7 @@ class HelpActionButton extends StatelessWidget {
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
           ),
-          shape: const RoundedRectangleBorder(borderRadius: AppRadii.standard),
+          shape: const PixelBorder(),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -53,9 +46,9 @@ class HelpActionButton extends StatelessWidget {
               child: AppText(
                 label,
                 textAlign: alignLeft ? TextAlign.start : TextAlign.center,
-                style: light
-                    ? AppTextStyles.helpQuestion
-                    : AppTextStyles.helpAction,
+                style: AppTextStyles.helpOnDarkHeading.copyWith(
+                  color: light ? AppColors.primary : AppColors.cave,
+                ),
               ),
             ),
             if (trailing != null) ...[
