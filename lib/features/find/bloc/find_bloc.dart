@@ -87,7 +87,11 @@ class FindBloc extends ResourceController<FindCatalog> {
   bool _versionAtLeast(String version, String minimum) {
     final current = version.split('.').map(int.tryParse).toList();
     final required = minimum.split('.').map(int.tryParse).toList();
-    for (var index = 0; index < 2; index++) {
+    for (
+      var index = 0;
+      index < current.length || index < required.length;
+      index++
+    ) {
       final currentPart = index < current.length ? current[index] ?? 0 : 0;
       final requiredPart = index < required.length ? required[index] ?? 0 : 0;
       if (currentPart != requiredPart) return currentPart > requiredPart;
