@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -11,10 +12,16 @@ import 'find_repository.dart';
 
 /// Loads the ore catalog and exact ore positions from the backend.
 class ApiFindRepository extends JsonFindRepository {
-  ApiFindRepository({super.source, Uri? baseUri})
-    : baseUri = baseUri ?? ApiConfig.baseUri;
+  ApiFindRepository({
+    super.source,
+    Uri? baseUri,
+    this.pollInterval = const Duration(seconds: 1),
+    this.jobTimeout = const Duration(minutes: 10),
+  }) : baseUri = baseUri ?? ApiConfig.baseUri;
 
   final Uri baseUri;
+  final Duration pollInterval;
+  final Duration jobTimeout;
   Future<FindCatalog>? _apiCatalog;
 
   @override
@@ -119,8 +126,56 @@ class ApiFindRepository extends JsonFindRepository {
     if (statusCode < 200 || statusCode >= 300) {
       throw HttpException(_errorMessage(body), uri: uri);
     }
-    final decoded = jsonDecode(body) as Map<String, dynamic>;
-    final points = (decoded['points'] as List? ?? const [])
+    final job = jsonDecode(body) as Map<String, dynamic>;
+    final jobId = job['jobId'];
+    if (jobId is! String || jobId.isEmpty) {
+      throw const FormatException('The API did not return a job ID.');
+    }
+    final deadline = DateTime.now().add(jobTimeout);
+    var current = job;
+    while (true) {
+      switch (current['status']) {
+        case 'succeeded':
+          final result = current['result'];
+          if (result is! Map<String, dynamic>) {
+            throw const FormatException('The completed job has no result.');
+          }
+          return _recordFromResult(query, result);
+        case 'failed':
+          final error = current['error'];
+          throw HttpException(
+            error is String && error.isNotEmpty
+                ? error
+                : 'The ore search failed.',
+          );
+        case 'queued':
+        case 'running':
+          break;
+        default:
+          throw FormatException(
+            'Unknown ore search status: ${current['status']}',
+          );
+      }
+      final remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero) {
+        throw const HttpException(
+          'The ore search timed out. Please try again.',
+        );
+      }
+      await Future<void>.delayed(
+        remaining < pollInterval ? remaining : pollInterval,
+      );
+      final path = '/api/plan/jobs/${Uri.encodeComponent(jobId)}';
+      final (jobStatus, jobBody) = await _send(path);
+      if (jobStatus < 200 || jobStatus >= 300) {
+        throw HttpException(_errorMessage(jobBody), uri: _uri(path));
+      }
+      current = jsonDecode(jobBody) as Map<String, dynamic>;
+    }
+  }
+
+  SearchRecord _recordFromResult(FindQuery query, Map<String, dynamic> result) {
+    final points = (result['points'] as List? ?? const [])
         .map((point) {
           final value = point as Map<String, dynamic>;
           return OrePosition(
@@ -132,7 +187,7 @@ class ApiFindRepository extends JsonFindRepository {
         })
         .toList(growable: false);
     final now = DateTime.now();
-    final responseOreName = decoded['oreName'];
+    final responseOreName = result['oreName'];
     return SearchRecord(
       id: now.microsecondsSinceEpoch.toString(),
       seed: query.seed,
@@ -180,8 +235,21 @@ class ApiFindRepository extends JsonFindRepository {
         request.contentLength = body.length;
         request.add(body);
       }
-      final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
+      final response = await request.close().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw const HttpException(
+          'The API did not respond in time. Please try again.',
+        ),
+      );
+      final body = await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw const HttpException(
+              'The API did not respond in time. Please try again.',
+            ),
+          );
       return (response.statusCode, body);
     } finally {
       client.close(force: true);
