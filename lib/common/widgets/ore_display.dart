@@ -10,11 +10,9 @@ class OreDisplay extends StatelessWidget {
     super.key,
     required this.id,
     this.size = 200,
-    this.pin = false,
   });
   final String id;
   final double size;
-  final bool pin;
   @override
   Widget build(BuildContext context) {
     final accent = MiningStyle.oreAccent(id);
@@ -44,30 +42,6 @@ class OreDisplay extends StatelessWidget {
               size: size * .77,
             ),
           ),
-          if (pin)
-            Positioned(
-              left: size * .34,
-              top: size * .44,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    size: size * .24,
-                    color: Colors.white,
-                  ),
-                  Icon(Icons.location_on, size: size * .205, color: accent),
-                  Positioned(
-                    top: size * .055,
-                    child: Icon(
-                      Icons.circle,
-                      size: size * .065,
-                      color: AppColors.cave,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

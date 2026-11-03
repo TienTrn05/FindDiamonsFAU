@@ -10,6 +10,7 @@ abstract final class OrePalette {
   static const stone = Color(0xFF84776F);
   static const gold = Color(0xFFF1C950);
   static const emerald = Color(0xFF40C78D);
+  static const iron = Color(0xFFD9B69C);
   static const patternOpacity = Color(0x62FFFFFF);
   static const outline = Color(0xFF505653);
   static const topFace = Color(0xFFB6B8B1);

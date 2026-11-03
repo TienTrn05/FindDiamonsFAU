@@ -36,6 +36,8 @@ import 'package:roblox/core/theme/app_text_styles.dart';
 import 'package:roblox/core/theme/app_theme.dart';
 import 'package:roblox/core/theme/mining_style.dart';
 import 'package:roblox/common/widgets/game_back_button.dart';
+import 'package:roblox/common/widgets/ore_art.dart';
+import 'package:roblox/common/widgets/ore_display.dart';
 import 'package:roblox/core/models/search_record.dart';
 import 'package:roblox/features/find/data/find_repository.dart';
 import 'package:roblox/features/find/presentation/find_page.dart';
@@ -960,10 +962,23 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Previous ore'));
       await tester.pumpAndSettle();
+      final ironDisplay = find.byWidgetPredicate(
+        (widget) => widget is OreDisplay && widget.id == 'iron',
+      );
+      expect(ironDisplay, findsOneWidget);
+      expect(
+        tester
+            .widget<OreIcon>(
+              find.descendant(of: ironDisplay, matching: find.byType(OreIcon)),
+            )
+            .ore,
+        Ore.iron,
+      );
+      expect(find.text('Iron equipment'), findsOneWidget);
       await tester.ensureVisible(find.byKey(const ValueKey('confirm-ore')));
       await tester.tap(find.byKey(const ValueKey('confirm-ore')));
       await tester.pumpAndSettle();
-      expect(find.text('Emerald'), findsOneWidget);
+      expect(find.text('Iron'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

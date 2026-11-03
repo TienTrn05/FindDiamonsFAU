@@ -72,6 +72,7 @@ flutter:
     - assets/images/warehouse.png
     - assets/images/help_cave.png
     - assets/images/dashboard_cave_v2.png
+    - assets/block/
     - assets/data/find/
     - assets/data/history/
     - assets/data/skins/

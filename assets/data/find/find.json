@@ -47,6 +47,10 @@
     {
       "id": "emerald",
       "name": "Emerald"
+    },
+    {
+      "id": "iron",
+      "name": "Iron"
     }
   ],
   "positions": [

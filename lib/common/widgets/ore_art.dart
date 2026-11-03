@@ -5,7 +5,19 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/ore_palette.dart';
 
-enum Ore { diamond, copper, coal, lapis, redstone, stone, gold, emerald }
+enum Ore { diamond, copper, coal, lapis, redstone, stone, gold, emerald, iron }
+
+String? oreBlockAsset(Ore ore) => switch (ore) {
+  Ore.diamond => 'assets/block/diamond1.png',
+  Ore.copper => 'assets/block/copper.png',
+  Ore.coal => 'assets/block/coal.png',
+  Ore.lapis => 'assets/block/lapiz.png',
+  Ore.redstone => 'assets/block/red.png',
+  Ore.gold => 'assets/block/gold.png',
+  Ore.emerald => 'assets/block/ameraild.png',
+  Ore.iron => 'assets/block/iron.png',
+  Ore.stone => null,
+};
 
 class OreIcon extends StatelessWidget {
   const OreIcon({
@@ -21,14 +33,32 @@ class OreIcon extends StatelessWidget {
   final bool showCenterGem;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: Size.square(size),
-    painter: _OrePainter(
-      ore,
-      mineralTint: mineralTint,
-      showCenterGem: showCenterGem,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final asset = oreBlockAsset(ore);
+    if (asset == null) {
+      return CustomPaint(
+        size: Size.square(size),
+        painter: _OrePainter(
+          ore,
+          mineralTint: mineralTint,
+          showCenterGem: showCenterGem,
+        ),
+      );
+    }
+
+    final image = Image.asset(
+      asset,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      cacheWidth: math.min(
+        1254,
+        math.max(1, (size * MediaQuery.devicePixelRatioOf(context)).ceil()),
+      ),
+    );
+    return image;
+  }
 }
 
 class OreBackground extends StatelessWidget {
@@ -102,6 +132,7 @@ class _OrePainter extends CustomPainter {
     OrePalette.stone,
     OrePalette.gold,
     OrePalette.emerald,
+    OrePalette.iron,
   ];
 
   void polygon(Canvas canvas, List<Offset> points, Color color) {

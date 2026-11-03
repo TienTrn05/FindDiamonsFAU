@@ -178,7 +178,7 @@ class _OrePickerPageState extends State<OrePickerPage> {
                 children: [
                   Expanded(
                     child: FittedBox(
-                      child: OreDisplay(id: item.id, size: 260, pin: selected),
+                      child: OreDisplay(id: item.id, size: 260),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -291,6 +291,7 @@ class _OrePickerPageState extends State<OrePickerPage> {
       'redstone' => 'Mechanisms',
       'lapis' => 'Enchanting',
       'gold' => 'Golden equipment',
+      'iron' => 'Iron equipment',
       _ => 'Building',
     };
     final children = [
