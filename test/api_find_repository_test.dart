@@ -32,6 +32,7 @@ void main() {
             'ores': [
               {'id': 'diamond', 'name': 'Diamond', 'availableFrom': '1.16'},
               {'id': 'copper', 'name': 'Copper', 'availableFrom': '1.21.1'},
+              {'id': 'iron', 'name': 'Iron', 'availableFrom': '1.16'},
             ],
           }),
         );
@@ -53,7 +54,7 @@ void main() {
                     'jobId': 'job-1',
                     'status': 'succeeded',
                     'result': {
-                      'oreName': 'Diamond',
+                      'oreName': 'Iron',
                       'points': [
                         {'x': 12, 'y': -54, 'z': 30, 'distance': 5},
                       ],
@@ -79,20 +80,25 @@ void main() {
       'bedrock_1.20',
     ]);
     bloc.selectVersion('java_1.16');
-    expect(bloc.availableOres.map((ore) => ore.id), ['diamond']);
+    expect(bloc.availableOres.map((ore) => ore.id), ['diamond', 'iron']);
     bloc.selectVersion('bedrock_1.21');
-    expect(bloc.availableOres.map((ore) => ore.id), ['diamond']);
+    expect(bloc.availableOres.map((ore) => ore.id), ['diamond', 'iron']);
     expect(bloc.version.label, '1.21 Bedrock Edition');
     bloc.selectVersion('bedrock_1.21.2');
-    expect(bloc.availableOres.map((ore) => ore.id), ['diamond', 'copper']);
+    expect(bloc.availableOres.map((ore) => ore.id), [
+      'diamond',
+      'copper',
+      'iron',
+    ]);
+    bloc.selectOre('iron');
     final record = await repository.search(
       FindQuery(x: 0, z: 0, seed: '42', version: bloc.version, ore: bloc.ore),
     );
     expect(plan!['edition'], 'bedrock');
     expect(plan!['version'], '1.21.2');
-    expect(plan!['ore'], 'diamond');
+    expect(plan!['ore'], 'iron');
     expect(polls, 2);
-    expect(record.oreName, 'Diamond');
+    expect(record.oreName, 'Iron');
     expect(record.positions.single.x, 12);
     expect(record.positions.single.y, -54);
     expect(record.positions.single.z, 30);

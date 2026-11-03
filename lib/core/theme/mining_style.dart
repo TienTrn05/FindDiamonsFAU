@@ -38,7 +38,7 @@ abstract final class MiningStyle {
     'redstone' => AppColors.danger,
     'emerald' => green,
     'netherite' => rankedAccents[4],
-    'iron' => AppColors.stone,
+    'iron' => const Color(0xFFD9B69C),
     'copper' => const Color(0xFFFFA454),
     'coal' => const Color(0xFF9AAEC1),
     'lapis' => const Color(0xFF5F94FF),
